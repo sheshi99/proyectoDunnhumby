@@ -1,11 +1,11 @@
 
--- =====================
-=======================================
+-- ============================================================
 -- EVALUACIÓN DE CALIDAD DE DATOS: CAMPAIGN_DESC
 -- Proyecto: Data Warehouse Dunnhumby
 -- Tabla: public.campaign_desc
 -- Las consultas son de solo lectura.
 -- ============================================================
+
 
 --- Observar la información de la tabla 
 
@@ -43,11 +43,23 @@ FROM public.campaign_desc;
 
 
 -- 4. VERIFICACIÓN DE INTEGRIDAD CON CAMPAIGN_TABLE
+-- Verifica cuántas campañas del maestro (tabla campaign_desc) tienen hogares 
+-- asignados en la tabla campaign_table.
 SELECT
     COUNT(DISTINCT cd."CAMPAIGN") AS campanas_en_desc,
     COUNT(DISTINCT ct."CAMPAIGN") FILTER (WHERE ct."CAMPAIGN" IS NOT NULL) AS campanas_con_hogares_asignados
 FROM public.campaign_desc cd
 LEFT JOIN public.campaign_table ct ON cd."CAMPAIGN" = ct."CAMPAIGN";
+
+
+-- ============================================================
+-- RELACIONES TABLA: campaign_desc
+-- ------------------------------------------------------------
+-- -> Relación con: campaign_table
+--    - Tipo: 1 a N
+--    - Llave de unión: CAMPAIGN
+--    - Propósito: Identifica cuáles hogares participaron en cada campaña.
+-- ============================================================
 
 
 -- ============================================================
@@ -76,3 +88,4 @@ LEFT JOIN public.campaign_table ct ON cd."CAMPAIGN" = ct."CAMPAIGN";
 -- La tabla campaign_desc presenta una calidad de datos óptima y sin anomalías. 
 -- La ausencia de nulos y duplicados, sumada a su perfecta integridad referencial, 
 -- permite cerrar su evaluación e integrar la entidad con total seguridad al modelo dimensional.
+
