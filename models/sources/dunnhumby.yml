@@ -1,0 +1,169 @@
+version: 2
+sources:
+- name: dunnhumby
+  schema: staging
+  description: Ocho fuentes Dunnhumby expuestas como vistas tipadas sobre public. Conservan filas y valores originales;
+    limpieza y reglas de negocio en dbt.
+  tables:
+  - name: campaign_desc
+    description: Catálogo de campañas; grano esperado una campaña.
+    columns:
+    - name: description
+      data_type: text
+      description: 'Columna fuente: DESCRIPTION.'
+    - name: campaign
+      data_type: bigint
+      description: 'Columna fuente: CAMPAIGN.'
+    - name: start_day
+      data_type: bigint
+      description: 'Columna fuente: START_DAY.'
+    - name: end_day
+      data_type: bigint
+      description: 'Columna fuente: END_DAY.'
+  - name: campaign_table
+    description: Asignaciones de hogares a campañas; grano hogar y campaña.
+    columns:
+    - name: description
+      data_type: text
+      description: 'Columna fuente: DESCRIPTION.'
+    - name: household_key
+      data_type: bigint
+      description: 'Columna fuente: household_key.'
+    - name: campaign
+      data_type: bigint
+      description: 'Columna fuente: CAMPAIGN.'
+  - name: causal_data
+    description: Exposición promocional por producto, tienda y semana; display y mailer son códigos de texto.
+    columns:
+    - name: product_id
+      data_type: bigint
+      description: 'Columna fuente: PRODUCT_ID.'
+    - name: store_id
+      data_type: bigint
+      description: 'Columna fuente: STORE_ID.'
+    - name: week_no
+      data_type: bigint
+      description: 'Columna fuente: WEEK_NO.'
+    - name: display
+      data_type: text
+      description: 'Columna fuente: display.'
+    - name: mailer
+      data_type: text
+      description: 'Columna fuente: mailer.'
+  - name: coupon
+    description: Productos asociados a cupones y campañas; coupon_upc por sí solo no es único.
+    columns:
+    - name: coupon_upc
+      data_type: bigint
+      description: 'Columna fuente: COUPON_UPC.'
+    - name: product_id
+      data_type: bigint
+      description: 'Columna fuente: PRODUCT_ID.'
+    - name: campaign
+      data_type: bigint
+      description: 'Columna fuente: CAMPAIGN.'
+  - name: coupon_redempt
+    description: Eventos de canje por hogar, día, cupón y campaña; no se deduplican.
+    columns:
+    - name: household_key
+      data_type: bigint
+      description: 'Columna fuente: household_key.'
+    - name: day
+      data_type: bigint
+      description: 'Columna fuente: DAY.'
+    - name: coupon_upc
+      data_type: bigint
+      description: 'Columna fuente: COUPON_UPC.'
+    - name: campaign
+      data_type: bigint
+      description: 'Columna fuente: CAMPAIGN.'
+  - name: hh_demographic
+    description: Perfil demográfico disponible para una parte de los hogares.
+    columns:
+    - name: age_desc
+      data_type: text
+      description: 'Columna fuente: AGE_DESC.'
+    - name: marital_status_code
+      data_type: text
+      description: 'Columna fuente: MARITAL_STATUS_CODE.'
+    - name: income_desc
+      data_type: text
+      description: 'Columna fuente: INCOME_DESC.'
+    - name: homeowner_desc
+      data_type: text
+      description: 'Columna fuente: HOMEOWNER_DESC.'
+    - name: hh_comp_desc
+      data_type: text
+      description: 'Columna fuente: HH_COMP_DESC.'
+    - name: household_size_desc
+      data_type: text
+      description: 'Columna fuente: HOUSEHOLD_SIZE_DESC.'
+    - name: kid_category_desc
+      data_type: text
+      description: 'Columna fuente: KID_CATEGORY_DESC.'
+    - name: household_key
+      data_type: bigint
+      description: 'Columna fuente: household_key.'
+  - name: product
+    description: Catálogo de productos; grano esperado un producto.
+    columns:
+    - name: product_id
+      data_type: bigint
+      description: 'Columna fuente: PRODUCT_ID.'
+    - name: manufacturer
+      data_type: bigint
+      description: 'Columna fuente: MANUFACTURER.'
+    - name: department
+      data_type: text
+      description: 'Columna fuente: DEPARTMENT.'
+    - name: brand
+      data_type: text
+      description: 'Columna fuente: BRAND.'
+    - name: commodity_desc
+      data_type: text
+      description: 'Columna fuente: COMMODITY_DESC.'
+    - name: sub_commodity_desc
+      data_type: text
+      description: 'Columna fuente: SUB_COMMODITY_DESC.'
+    - name: curr_size_of_product
+      data_type: text
+      description: 'Columna fuente: CURR_SIZE_OF_PRODUCT.'
+  - name: transaction_data
+    description: Líneas de compra; basket_id por sí solo no identifica una fila.
+    columns:
+    - name: household_key
+      data_type: bigint
+      description: 'Columna fuente: household_key.'
+    - name: basket_id
+      data_type: bigint
+      description: 'Columna fuente: BASKET_ID.'
+    - name: day
+      data_type: bigint
+      description: 'Columna fuente: DAY.'
+    - name: product_id
+      data_type: bigint
+      description: 'Columna fuente: PRODUCT_ID.'
+    - name: quantity
+      data_type: bigint
+      description: 'Columna fuente: QUANTITY.'
+    - name: sales_value
+      data_type: numeric
+      description: 'Columna fuente: SALES_VALUE.'
+    - name: store_id
+      data_type: bigint
+      description: 'Columna fuente: STORE_ID.'
+    - name: retail_disc
+      data_type: numeric
+      description: 'Columna fuente: RETAIL_DISC.'
+    - name: trans_time
+      data_type: bigint
+      description: 'Columna fuente: TRANS_TIME.'
+    - name: week_no
+      data_type: bigint
+      description: 'Columna fuente: WEEK_NO.'
+    - name: coupon_disc
+      data_type: numeric
+      description: 'Columna fuente: COUPON_DISC.'
+    - name: coupon_match_disc
+      data_type: numeric
+      description: 'Columna fuente: COUPON_MATCH_DISC.'
