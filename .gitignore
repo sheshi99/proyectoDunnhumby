@@ -4,5 +4,9 @@ __pycache__/
 venv/
 *.pyc
 
-database/*.csv
 database/
+
+# Configuración local y archivos generados por dbt
+profiles.yml
+logs/
+.user.yml
