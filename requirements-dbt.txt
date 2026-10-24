@@ -1,3 +1,4 @@
 # pip selecciona versiones compatibles con el Python del entorno.
 dbt-core>=1.9,<2.0
 dbt-postgres>=1.9,<2.0
+python-dotenv[cli]>=1.0,<2.0
