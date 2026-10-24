@@ -9,4 +9,5 @@ database/
 # Configuración local y archivos generados por dbt
 profiles.yml
 logs/
+target/
 .user.yml
