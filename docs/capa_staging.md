@@ -1,8 +1,8 @@
 # Capa de staging de Dunnhumby (DUN-12)
 
 La carga actual deja las ocho tablas crudas en `public`, en la base
-`dunnhumby_etl`. El script `01_crear_staging.sql` crea el esquema `staging`
-y ocho vistas con columnas explícitas en minúsculas y tipos definidos.
+`dunnhumby_etl`. El script `00_validar_requisitos.sql` crea el esquema `staging`
+y los scripts `01_campaign_desc.sql` a `08_transaction_data.sql` crean ocho vistas con columnas explícitas en minúsculas y tipos definidos.
 Estas vistas son las relaciones fuente que consumirá dbt. No son ocho
 copias físicas: consultan las tablas originales y reflejan sus cambios.
 Si se requiere materialización física, debe acordarse esa decisión antes
@@ -41,13 +41,17 @@ En pgAdmin, abrir Query Tool en `dunnhumby_etl` y ejecutar el contenido
 completo de cada archivo con F5, en este orden:
 
 1. `scripts/sql/Configuraciones/esquema_roles_permisos.sql`.
-2. `scripts/sql/staging/01_crear_staging.sql`.
-3. `scripts/sql/staging/02_validar_staging.sql`.
+2. `scripts/sql/staging/00_validar_requisitos.sql`.
+3. Los ocho archivos de vistas, en este orden:
+   `01_campaign_desc.sql`, `02_campaign_table.sql`, `03_causal_data.sql`,
+   `04_coupon.sql`, `05_coupon_redempt.sql`, `06_hh_demographic.sql`,
+   `07_product.sql` y `08_transaction_data.sql`.
+4. `scripts/sql/staging/09_validar_staging.sql` (validaci?n final, aunque su prefijo sea 02).
 
 No ejecutar solo fragmentos como `FOR ROLE`. Si una ejecución falla dentro
 de una transacción, ejecutar `ROLLBACK;` por separado, resolver el error
 y repetir el archivo completo. Las tablas originales deben estar cargadas
-en `public` antes del segundo paso.
+en `public` antes de crear las vistas.
 
 Primero ejecutar `scripts/sql/Configuraciones/esquema_roles_permisos.sql`
 completo en `dunnhumby_etl`, conectado como `postgres` u otro administrador
@@ -62,18 +66,10 @@ otro creador, también se deben configurar sus permisos predeterminados.
 El script DUN-12 requiere `rol_staging` y no modifica la configuración
 del esquema `data_warehouse`.
 
-Con las ocho tablas ya cargadas, desde la raíz del repositorio en PowerShell:
+Con las ocho tablas ya cargadas, ejecutar cada archivo completo desde Query Tool
+de pgAdmin, conectado a `dunnhumby_etl`, siguiendo el orden indicado arriba.
 
-```powershell
-& 'C:/Program Files/PostgreSQL/17/bin/psql.exe' -X -W -h localhost -U postgres -d dunnhumby_etl -v ON_ERROR_STOP=1 -f scripts/sql/staging/01_crear_staging.sql
-& 'C:/Program Files/PostgreSQL/17/bin/psql.exe' -X -W -h localhost -U postgres -d dunnhumby_etl -v ON_ERROR_STOP=1 -f scripts/sql/staging/02_validar_staging.sql
-```
-
-Ajustar la ruta si PostgreSQL está instalado en otra ubicación. La contraseña
-se solicita en la terminal y no se guarda en el repositorio. También se puede
-ejecutar cada archivo completo, en ese orden, desde Query Tool de pgAdmin.
-
-La creación es transaccional y se puede repetir mientras las columnas de las
+Cada archivo tiene su propia transacción; si falla uno, corregirlo y repetirlo antes de continuar. El conjunto de archivos ya no es atómico. La creación es transaccional por archivo y se puede repetir mientras las columnas de las
 vistas mantengan su contrato. No elimina ni recarga tablas originales. La
 validación exige ocho vistas, fuentes no vacías, conteos iguales y conversiones
 válidas en todas las columnas. Recorre los datos completos y puede tardar,
@@ -110,12 +106,12 @@ efectiva del usuario de dbt deben comprobarse por separado.
 
 La evidencia siguiente corresponde a la versión anterior de DUN-12.
 La versión actual añade permisos explícitos y su comprobación, por lo que
-deben ejecutarse nuevamente ambos scripts y guardar la nueva salida antes
+deben ejecutarse nuevamente los scripts de creaci?n y validaci?n y guardar la nueva salida antes
 de dar por validada esta versión. No se ha podido ejecutar desde el agente
 porque PostgreSQL solicita contraseña.
 
 La captura de pgAdmin compartida durante la revisión muestra la ejecución
-exitosa de `02_validar_staging.sql` en `dunnhumby_etl`, con ocho mensajes
+exitosa de `09_validar_staging.sql` en `dunnhumby_etl`, con ocho mensajes
 `OK`, `COMMIT` y un tiempo de 12 segundos y 115 milisegundos.
 
 | Fuente en staging | Filas confirmadas |
