@@ -150,5 +150,7 @@ sources:
   - name: transaction_data
   - name: campaign_desc
   - name: coupon_redempt
+  - name: product
+  - name: coupon
 
 
