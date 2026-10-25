@@ -140,10 +140,15 @@ sources:
       data_type: text
       description: 'Columna fuente: CURR_SIZE_OF_PRODUCT.'
       quote: true
+
+
 - name: dunnhumby_raw
-  schema: staging
-  description: Tablas originales cargadas en staging; conservan los nombres de columnas
-    del CSV.
+  schema: public
+  description: Tablas originales cargadas desde los CSV.
   tables:
   - name: causal_data
   - name: transaction_data
+  - name: campaign_desc
+  - name: coupon_redempt
+
+
