@@ -1,0 +1,59 @@
+version: 2
+models:
+- name: stg_causal_data
+  description: Vista de staging administrada por dbt; conserva los valores originales.
+  columns:
+  - name: product_id
+    data_type: bigint
+    description: 'Columna fuente: PRODUCT_ID.'
+  - name: store_id
+    data_type: bigint
+    description: 'Columna fuente: STORE_ID.'
+  - name: week_no
+    data_type: bigint
+    description: 'Columna fuente: WEEK_NO.'
+  - name: display
+    data_type: text
+    description: 'Columna fuente: display.'
+  - name: mailer
+    data_type: text
+    description: 'Columna fuente: mailer.'
+- name: stg_transaction_data
+  description: Vista de staging administrada por dbt; conserva los valores originales.
+  columns:
+  - name: household_key
+    data_type: bigint
+    description: 'Columna fuente: household_key.'
+  - name: basket_id
+    data_type: bigint
+    description: 'Columna fuente: BASKET_ID.'
+  - name: transaction_day
+    data_type: bigint
+    description: 'Columna fuente: DAY.'
+  - name: product_id
+    data_type: bigint
+    description: 'Columna fuente: PRODUCT_ID.'
+  - name: quantity
+    data_type: bigint
+    description: 'Columna fuente: QUANTITY.'
+  - name: sales_value
+    data_type: numeric
+    description: 'Columna fuente: SALES_VALUE.'
+  - name: store_id
+    data_type: bigint
+    description: 'Columna fuente: STORE_ID.'
+  - name: retail_discount
+    data_type: numeric
+    description: 'Columna fuente: RETAIL_DISC.'
+  - name: transaction_time_hhmm
+    data_type: bigint
+    description: 'Columna fuente: TRANS_TIME.'
+  - name: transaction_week
+    data_type: bigint
+    description: 'Columna fuente: WEEK_NO.'
+  - name: coupon_discount
+    data_type: numeric
+    description: 'Columna fuente: COUPON_DISC.'
+  - name: coupon_match_discount
+    data_type: numeric
+    description: 'Columna fuente: COUPON_MATCH_DISC.'
