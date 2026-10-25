@@ -39,6 +39,63 @@ models:
   - name: children_category
     data_type: text
     description: 'Columna fuente: KID_CATEGORY_DESC.'
+- name: stg_product
+  description: >-
+    Vista de siete columnas en minúscula. Conserva filas e identificadores;
+    convierte únicamente textos vacíos en NULL y conserva las etiquetas originales.
+  columns:
+  - name: product_id
+    data_type: bigint
+    description: PRODUCT_ID original; no se genera otro identificador.
+    data_tests: [not_null, unique]
+  - name: manufacturer_id
+    data_type: integer
+    description: MANUFACTURER; rango observado de 1 a 6477.
+    data_tests: [not_null]
+  - name: department
+    data_type: text
+    description: Departamento en minúscula y sin espacios exteriores; vacío como NULL.
+  - name: brand
+    data_type: text
+    description: Marca en minúscula y sin espacios exteriores; vacío como NULL.
+  - name: category
+    data_type: text
+    description: COMMODITY_DESC en minúscula; conserva etiquetas y convierte vacíos en NULL.
+  - name: subcategory
+    data_type: text
+    description: SUB_COMMODITY_DESC en minúscula; conserva etiquetas y convierte vacíos en NULL.
+  - name: product_size
+    data_type: text
+    description: Tamaño y unidad como texto en minúscula; vacío como NULL, no cero.
+
+- name: stg_coupon
+  description: >-
+    Asociaciones únicas cupón-producto-campaña. El UPC original se llama
+    coupon_id para respetar nombre_id; no es único por sí solo. No inventa claves.
+  columns:
+  - name: coupon_id
+    data_type: bigint
+    description: COUPON_UPC; supera el rango de integer y conserva su valor original.
+    data_tests: [not_null]
+  - name: product_id
+    data_type: bigint
+    description: Producto al que aplica el cupón; mismo tipo que los modelos del equipo.
+    data_tests:
+    - not_null
+    - relationships:
+        arguments:
+          to: ref('stg_product')
+          field: product_id
+  - name: campaign_id
+    data_type: integer
+    description: CAMPAIGN; rango observado de 1 a 30.
+    data_tests:
+    - not_null
+    - relationships:
+        arguments:
+          to: source('dunnhumby_raw', 'campaign_desc')
+          field: '"CAMPAIGN"'
+
 - name: stg_causal_data
   description: Vista de staging administrada por dbt; conserva los valores originales.
   columns:
