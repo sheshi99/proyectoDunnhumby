@@ -1,7 +1,7 @@
 {{ config(materialized='view', alias='stg_transaction_data', grants={'select': ['rol_staging']}) }}
 
 -- Conserva filas, ceros, nulos y signos originales; no inventa fechas.
-SELECT household_key::integer AS household_key, 
+SELECT household_key::integer AS household_id, 
        "BASKET_ID"::bigint AS basket_id,
        "DAY"::integer AS transaction_day,
        "PRODUCT_ID"::bigint AS product_id,

@@ -31,9 +31,9 @@ sources:
       data_type: text
       description: 'Columna fuente: DESCRIPTION.'
       quote: true
-    - name: household_key
+    - name: household_id
       data_type: bigint
-      description: 'Columna fuente: household_key.'
+      description: 'Columna fuente: household_id.'
       quote: true
     - name: CAMPAIGN
       data_type: bigint
@@ -58,9 +58,9 @@ sources:
   - name: coupon_redempt
     description: Eventos de canje por hogar, día, cupón y campaña; no se deduplican.
     columns:
-    - name: household_key
+    - name: household_id
       data_type: bigint
-      description: 'Columna fuente: household_key.'
+      description: 'Columna fuente: household_id.'
       quote: true
     - name: DAY
       data_type: bigint
@@ -105,9 +105,9 @@ sources:
       data_type: text
       description: 'Columna fuente: KID_CATEGORY_DESC.'
       quote: true
-    - name: household_key
+    - name: household_id
       data_type: bigint
-      description: 'Columna fuente: household_key.'
+      description: 'Columna fuente: household_id.'
       quote: true
   - name: product
     description: Catálogo de productos; grano esperado un producto.
@@ -140,10 +140,15 @@ sources:
       data_type: text
       description: 'Columna fuente: CURR_SIZE_OF_PRODUCT.'
       quote: true
+
+
 - name: dunnhumby_raw
   schema: staging
-  description: Tablas originales cargadas en staging; conservan los nombres de columnas
-    del CSV.
+  description: Tablas originales cargadas desde los CSV.
   tables:
   - name: causal_data
   - name: transaction_data
+  - name: campaign_desc
+  - name: coupon_redempt
+
+
