@@ -18,6 +18,8 @@ models:
   - name: mailer
     data_type: text
     description: 'Columna fuente: mailer.'
+
+
 - name: stg_transaction_data
   description: Vista de staging administrada por dbt; conserva los valores originales.
   columns:
@@ -57,3 +59,36 @@ models:
   - name: coupon_match_discount
     data_type: numeric
     description: 'Columna fuente: COUPON_MATCH_DISC.'
+
+
+- name: stg_campaign_descriptions
+  description: Vista de staging con la descripción de campaña sin espacios externos.
+  columns:
+  - name: campaign_id
+    data_type: integer
+    description: Identificador de la campaña.
+  - name: campaign_type
+    data_type: text
+    description: Descripción de la campaña con espacios externos eliminados.
+  - name: start_day
+    data_type: integer
+    description: Día de inicio de la campaña.
+  - name: end_day
+    data_type: integer
+    description: Día de finalización de la campaña.
+
+- name: stg_coupon_redemptions
+  description: Vista de staging de redenciones; conserva las filas originales.
+  columns:
+  - name: household_id
+    data_type: integer
+    description: Identificador del hogar.
+  - name: redemption_day
+    data_type: integer
+    description: Día de la redención; proviene de DAY.
+  - name: coupon_upc
+    data_type: bigint
+    description: Identificador UPC del cupón.
+  - name: campaign_id
+    data_type: integer
+    description: Identificador de la campaña.
