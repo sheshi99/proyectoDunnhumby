@@ -145,5 +145,7 @@ sources:
   description: Tablas originales cargadas en staging; conservan los nombres de columnas
     del CSV.
   tables:
+  - name: campaign_table
   - name: causal_data
+  - name: hh_demographic
   - name: transaction_data
