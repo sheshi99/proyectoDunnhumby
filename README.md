@@ -10,13 +10,14 @@ Proyecto ETL para cargar el conjunto de datos Dunnhumby en PostgreSQL, revisar s
 2. **Revisar la calidad.** En la base `dunnhumby_etl`, ejecuta las consultas de `scripts/sql/RevisionCalidad/`, una por cada tabla. Esta revisión de las tablas originales en `public` permite inspeccionar anomalías antes del modelado.
 3. **Configurar esquemas y permisos.** Ejecuta `scripts/sql/Configuraciones/esquema_roles_permisos.sql` en `dunnhumby_etl` con un usuario administrador.
 4. **Crear y validar staging.** Ejecuta en orden `scripts/sql/staging/01_crear_staging.sql` y `scripts/sql/staging/02_validar_staging.sql`. Consulta [`docs/capa_staging.md`](docs/capa_staging.md) para conocer el diseño y las comprobaciones.
-5. **Configurar dbt cuando se vaya a trabajar en modelos.** Sigue [`docs/inicializacion_dbt.md`](docs/inicializacion_dbt.md).
+5. **Configurar dbt.** Sigue [`docs/inicializacion_dbt.md`](docs/inicializacion_dbt.md) para instalar dbt y comprobar la conexión.
+6. **Limpiar datos con modelos dbt.** Sigue el [instructivo de limpieza ETL con dbt](docs/instructivo_dbt_ETL.md) para declarar fuentes, crear modelos de staging, ejecutarlos y validar sus resultados.
 
 ## Carpetas principales
 
 - `database/`: CSV locales del dataset; no se incluyen en Git.
 - `scripts/`: carga de datos y SQL para configuración, revisión de calidad y staging.
-- `models/`: fuentes de datos para dbt.
-- `docs/`: guías detalladas del flujo y de staging.
+- `models/`: fuentes y modelos de transformación para dbt.
+- `docs/`: guías de carga, staging, inicialización de dbt y limpieza ETL.
 
 La carga puede reemplazar las tablas existentes. Revisa la guía de carga antes de ejecutarla sobre una base que ya contenga datos.
