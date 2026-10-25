@@ -18,11 +18,6 @@ finales de dimensiones y hechos en este paso.
 3. Ejecutar completo copiar_tablas_a_staging.sql en pgAdmin.
 4. Ejecutar completo 00_validar_requisitos.sql en pgAdmin.
 5. Con DBT_PG_SCHEMA=staging, ejecutar en la terminal:
-
-```powershell
-python -m dotenv -f .env run -- dbt run --select stg_transaction_data stg_causal_data --profiles-dir .
-```
-
 6. Ejecutar 03_validar_staging.sql en pgAdmin: compara las dos vistas dbt
    implementadas con sus tablas originales y evalua sus conversiones.
 

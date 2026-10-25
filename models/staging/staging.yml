@@ -7,10 +7,10 @@ models:
     data_type: bigint
     description: 'Columna fuente: PRODUCT_ID.'
   - name: store_id
-    data_type: bigint
+    data_type: integer
     description: 'Columna fuente: STORE_ID.'
-  - name: week_no
-    data_type: bigint
+  - name: week_number
+    data_type: integer
     description: 'Columna fuente: WEEK_NO.'
   - name: display
     data_type: text
@@ -24,34 +24,34 @@ models:
   description: Vista de staging administrada por dbt; conserva los valores originales.
   columns:
   - name: household_key
-    data_type: bigint
+    data_type: integer
     description: 'Columna fuente: household_key.'
   - name: basket_id
     data_type: bigint
     description: 'Columna fuente: BASKET_ID.'
   - name: transaction_day
-    data_type: bigint
+    data_type: integer
     description: 'Columna fuente: DAY.'
   - name: product_id
     data_type: bigint
     description: 'Columna fuente: PRODUCT_ID.'
   - name: quantity
-    data_type: bigint
+    data_type: integer
     description: 'Columna fuente: QUANTITY.'
   - name: sales_value
     data_type: numeric
     description: 'Columna fuente: SALES_VALUE.'
   - name: store_id
-    data_type: bigint
+    data_type: integer
     description: 'Columna fuente: STORE_ID.'
   - name: retail_discount
     data_type: numeric
     description: 'Columna fuente: RETAIL_DISC.'
   - name: transaction_time_hhmm
-    data_type: bigint
+    data_type: integer
     description: 'Columna fuente: TRANS_TIME.'
   - name: transaction_week
-    data_type: bigint
+    data_type: integer
     description: 'Columna fuente: WEEK_NO.'
   - name: coupon_discount
     data_type: numeric
