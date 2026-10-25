@@ -143,7 +143,7 @@ sources:
 
 
 - name: dunnhumby_raw
-  schema: public
+  schema: staging
   description: Tablas originales cargadas desde los CSV.
   tables:
   - name: causal_data
