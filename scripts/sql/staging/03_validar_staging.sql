@@ -13,7 +13,7 @@ BEGIN
         RAISE EXCEPTION 'Conectarse a dunnhumby_etl. Base actual: %', current_database();
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'staging') THEN
-        RAISE EXCEPTION 'Falta staging. Ejecutar configuración y 01_crear_staging.sql primero.';
+        RAISE EXCEPTION 'Falta staging. Ejecutar configuración y 00_validar_requisitos.sql y los ocho scripts de vistas primero.';
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'rol_staging') THEN
         RAISE EXCEPTION 'Falta el rol rol_staging';
