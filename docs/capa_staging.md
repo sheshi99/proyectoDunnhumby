@@ -1,4 +1,4 @@
-# Capa de staging de Dunnhumby (DUN-12)
+﻿# Capa staging de Dunnhumby (DUN-12)
 
 La carga actual deja las ocho tablas crudas en `public`, en la base
 `dunnhumby_etl`. El script `00_validar_requisitos.sql` crea el esquema `staging`
@@ -81,17 +81,67 @@ especialmente en `causal_data`; ejecutarla sin una recarga concurrente.
 archivo de modelo `.sql` de dbt, con el proyecto configurado para esta base:
 
 ```sql
-select product_id, department
-from {{ source('dunnhumby', 'product') }}
+SELECT product_id
+FROM staging.product;
 ```
 
-Ese ejemplo requiere dbt; no se ejecuta directamente en pgAdmin.
-Para consultar desde pgAdmin usar:
+Esta consulta usa `staging.product`. Internamente, la vista lee los datos
+de `public.product` y presenta la columna original `"PRODUCT_ID"` como
+`product_id`. Esa conversión
+y ese nombre ya están definidos en `01_crear_staging.sql`; no necesitas
+repetirlos al consultar la vista.
+
+Usar minúsculas permite escribir consultas sin comillas dobles. Es una
+convención para facilitar el trabajo; dbt no lo exige. La vista no cambia
+los nombres ni los valores guardados en las tablas originales.
+
+## ¿Qué vistas se crean?
+
+| Vista en staging | Qué contiene |
+| --- | --- |
+| `campaign_desc` | Descripción y días de inicio y fin de las campañas. |
+| `campaign_table` | Relación entre hogares y campañas. |
+| `causal_data` | Información promocional por producto, tienda y semana. |
+| `coupon` | Relación entre cupones, productos y campañas. |
+| `coupon_redempt` | Registros de canje de cupones por los hogares. |
+| `hh_demographic` | Información demográfica disponible de los hogares. |
+| `product` | Catálogo y características de los productos. |
+| `transaction_data` | Líneas de compra, cantidades, ventas y descuentos. |
+
+Las vistas no crean claves primarias ni foráneas. Por ejemplo, un cupón
+puede aparecer asociado a varios productos y una canasta puede tener varias
+líneas de compra. Estas relaciones se revisan con las consultas de
+`scripts/sql/RevisionCalidad/`.
+
+## Cómo ejecutar los archivos desde SQL en pgAdmin
+
+> **Importante: paso previo a staging.** Antes de ejecutar
+> `01_crear_staging.sql` y `02_validar_staging.sql`, debes ejecutar completo
+> `scripts/sql/Configuraciones/esquema_roles_permisos.sql` en la base
+> `dunnhumby_etl`. Este archivo prepara los esquemas, los roles y sus permisos,
+> y usa automáticamente el usuario conectado. Sin esta configuración previa,
+> los scripts de staging pueden fallar por falta de roles o permisos.
+
+Antes de empezar, las ocho tablas originales deben estar cargadas en `public`.
+
+Abre **Query Tool** sobre la base **`dunnhumby_etl`** en pgAdmin.
+Usa `postgres` u otro usuario administrador con permisos equivalentes para
+la configuración inicial. Abre y ejecuta el contenido completo de cada
+archivo, en este orden:
+
+| Orden | Archivo | Para qué sirve |
+| --- | --- | --- |
+| 1 | `scripts/sql/Configuraciones/esquema_roles_permisos.sql` | Prepara los esquemas, los roles y sus permisos. Usa automáticamente el usuario conectado. |
+| 2 | `scripts/sql/staging/01_crear_staging.sql` | Crea las ocho vistas y concede acceso de lectura a `rol_staging`. |
+| 3 | `scripts/sql/staging/02_validar_staging.sql` | Comprueba que las vistas estén listas para usarse. |
+
+Ejecuta cada archivo completo con el botón de ejecutar o con **F5**,
+sin seleccionar solamente una parte del código.
+
+Si ocurre un error y la transacción queda abortada, ejecuta por separado:
 
 ```sql
-SELECT product_id, department
-FROM staging.product
-LIMIT 5;
+ROLLBACK;
 ```
 
 El script de creación concede `USAGE` y `SELECT` a `rol_staging`
