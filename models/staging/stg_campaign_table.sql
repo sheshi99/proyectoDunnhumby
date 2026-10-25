@@ -1,7 +1,7 @@
 {{ config(materialized='view', alias='stg_campaign_table', grants={'select': ['rol_staging']}) }}
 
--- Conserva filas, ceros, nulos y valores originales.
-SELECT household_key::bigint AS household_key,
-       "CAMPAIGN"::bigint AS campaign,
-       "DESCRIPTION"::text AS description
+-- Conserva todas las asignaciones, incluidos hogares sin perfil demografico.
+SELECT "CAMPAIGN"::integer AS campaign_id,
+       household_key::integer AS household_id,
+       "DESCRIPTION"::text AS campaign_type
 from {{ source('dunnhumby_raw', 'campaign_table') }}

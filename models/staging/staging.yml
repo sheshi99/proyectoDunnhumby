@@ -1,44 +1,44 @@
 version: 2
 models:
 - name: stg_campaign_table
-  description: Vista de staging administrada por dbt; conserva todas las asignaciones de hogares a campanas y sus valores originales.
+  description: Vista de staging; estandariza nombres y tipos y conserva todas las filas y categorias originales.
   columns:
-  - name: household_key
-    data_type: bigint
-    description: 'Columna fuente: household_key.'
-  - name: campaign
-    data_type: bigint
+  - name: campaign_id
+    data_type: integer
     description: 'Columna fuente: CAMPAIGN.'
-  - name: description
+  - name: household_id
+    data_type: integer
+    description: 'Columna fuente: household_key.'
+  - name: campaign_type
     data_type: text
     description: 'Columna fuente: DESCRIPTION.'
 - name: stg_hh_demographic
-  description: Vista de staging administrada por dbt; conserva todos los perfiles y categorias originales, incluidas Unknown y None/Unknown.
+  description: Vista de staging; estandariza nombres y tipos y conserva todas las filas y categorias originales.
   columns:
-  - name: age_desc
-    data_type: text
-    description: 'Columna fuente: AGE_DESC. Conserva los rangos como texto.'
-  - name: marital_status_code
-    data_type: text
-    description: 'Columna fuente: MARITAL_STATUS_CODE.'
-  - name: income_desc
-    data_type: text
-    description: 'Columna fuente: INCOME_DESC. Conserva los rangos como texto.'
-  - name: homeowner_desc
-    data_type: text
-    description: 'Columna fuente: HOMEOWNER_DESC. Conserva la categoria Unknown.'
-  - name: hh_comp_desc
-    data_type: text
-    description: 'Columna fuente: HH_COMP_DESC. Conserva la categoria Unknown.'
-  - name: household_size_desc
-    data_type: text
-    description: 'Columna fuente: HOUSEHOLD_SIZE_DESC. Conserva las categorias como texto.'
-  - name: kid_category_desc
-    data_type: text
-    description: 'Columna fuente: KID_CATEGORY_DESC. Conserva None/Unknown sin reinterpretarla.'
-  - name: household_key
-    data_type: bigint
+  - name: household_id
+    data_type: integer
     description: 'Columna fuente: household_key.'
+  - name: age_range
+    data_type: text
+    description: 'Columna fuente: AGE_DESC.'
+  - name: marital_status_code
+    data_type: char(1)
+    description: 'Columna fuente: MARITAL_STATUS_CODE.'
+  - name: income_range
+    data_type: text
+    description: 'Columna fuente: INCOME_DESC.'
+  - name: homeownership_status
+    data_type: text
+    description: 'Columna fuente: HOMEOWNER_DESC.'
+  - name: household_composition
+    data_type: text
+    description: 'Columna fuente: HH_COMP_DESC.'
+  - name: household_size_category
+    data_type: text
+    description: 'Columna fuente: HOUSEHOLD_SIZE_DESC.'
+  - name: children_category
+    data_type: text
+    description: 'Columna fuente: KID_CATEGORY_DESC.'
 - name: stg_causal_data
   description: Vista de staging administrada por dbt; conserva los valores originales.
   columns:
