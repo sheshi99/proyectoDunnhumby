@@ -8,34 +8,34 @@ models:
     description: 'Columna fuente: household_key.'
   - name: campaign
     data_type: bigint
-    description: 'Columna fuente: campaign.'
+    description: 'Columna fuente: CAMPAIGN.'
   - name: description
     data_type: text
-    description: 'Columna fuente: description.'
+    description: 'Columna fuente: DESCRIPTION.'
 - name: stg_hh_demographic
   description: Vista de staging administrada por dbt; conserva todos los perfiles y categorias originales, incluidas Unknown y None/Unknown.
   columns:
   - name: age_desc
     data_type: text
-    description: 'Columna fuente: age_desc. Conserva los rangos como texto.'
+    description: 'Columna fuente: AGE_DESC. Conserva los rangos como texto.'
   - name: marital_status_code
     data_type: text
-    description: 'Columna fuente: marital_status_code.'
+    description: 'Columna fuente: MARITAL_STATUS_CODE.'
   - name: income_desc
     data_type: text
-    description: 'Columna fuente: income_desc. Conserva los rangos como texto.'
+    description: 'Columna fuente: INCOME_DESC. Conserva los rangos como texto.'
   - name: homeowner_desc
     data_type: text
-    description: 'Columna fuente: homeowner_desc. Conserva la categoria Unknown.'
+    description: 'Columna fuente: HOMEOWNER_DESC. Conserva la categoria Unknown.'
   - name: hh_comp_desc
     data_type: text
-    description: 'Columna fuente: hh_comp_desc. Conserva la categoria Unknown.'
+    description: 'Columna fuente: HH_COMP_DESC. Conserva la categoria Unknown.'
   - name: household_size_desc
     data_type: text
-    description: 'Columna fuente: household_size_desc. Conserva las categorias como texto.'
+    description: 'Columna fuente: HOUSEHOLD_SIZE_DESC. Conserva las categorias como texto.'
   - name: kid_category_desc
     data_type: text
-    description: 'Columna fuente: kid_category_desc. Conserva None/Unknown sin reinterpretarla.'
+    description: 'Columna fuente: KID_CATEGORY_DESC. Conserva None/Unknown sin reinterpretarla.'
   - name: household_key
     data_type: bigint
     description: 'Columna fuente: household_key.'
