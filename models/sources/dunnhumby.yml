@@ -2,168 +2,148 @@ version: 2
 sources:
 - name: dunnhumby
   schema: staging
-  description: Ocho fuentes Dunnhumby expuestas como vistas tipadas sobre public. Conservan filas y valores originales;
-    limpieza y reglas de negocio en dbt.
+  description: Tablas originales cargadas en staging; conservan los nombres de columnas
+    del CSV.
   tables:
   - name: campaign_desc
     description: Catálogo de campañas; grano esperado una campaña.
     columns:
-    - name: description
+    - name: DESCRIPTION
       data_type: text
       description: 'Columna fuente: DESCRIPTION.'
-    - name: campaign
+      quote: true
+    - name: CAMPAIGN
       data_type: bigint
       description: 'Columna fuente: CAMPAIGN.'
-    - name: start_day
+      quote: true
+    - name: START_DAY
       data_type: bigint
       description: 'Columna fuente: START_DAY.'
-    - name: end_day
+      quote: true
+    - name: END_DAY
       data_type: bigint
       description: 'Columna fuente: END_DAY.'
+      quote: true
   - name: campaign_table
     description: Asignaciones de hogares a campañas; grano hogar y campaña.
     columns:
-    - name: description
+    - name: DESCRIPTION
       data_type: text
       description: 'Columna fuente: DESCRIPTION.'
+      quote: true
     - name: household_key
       data_type: bigint
       description: 'Columna fuente: household_key.'
-    - name: campaign
+      quote: true
+    - name: CAMPAIGN
       data_type: bigint
       description: 'Columna fuente: CAMPAIGN.'
-  - name: causal_data
-    description: Exposición promocional por producto, tienda y semana; display y mailer son códigos de texto.
-    columns:
-    - name: product_id
-      data_type: bigint
-      description: 'Columna fuente: PRODUCT_ID.'
-    - name: store_id
-      data_type: bigint
-      description: 'Columna fuente: STORE_ID.'
-    - name: week_no
-      data_type: bigint
-      description: 'Columna fuente: WEEK_NO.'
-    - name: display
-      data_type: text
-      description: 'Columna fuente: display.'
-    - name: mailer
-      data_type: text
-      description: 'Columna fuente: mailer.'
+      quote: true
   - name: coupon
-    description: Productos asociados a cupones y campañas; coupon_upc por sí solo no es único.
+    description: Productos asociados a cupones y campañas; coupon_upc por sí solo
+      no es único.
     columns:
-    - name: coupon_upc
+    - name: COUPON_UPC
       data_type: bigint
       description: 'Columna fuente: COUPON_UPC.'
-    - name: product_id
+      quote: true
+    - name: PRODUCT_ID
       data_type: bigint
       description: 'Columna fuente: PRODUCT_ID.'
-    - name: campaign
+      quote: true
+    - name: CAMPAIGN
       data_type: bigint
       description: 'Columna fuente: CAMPAIGN.'
+      quote: true
   - name: coupon_redempt
     description: Eventos de canje por hogar, día, cupón y campaña; no se deduplican.
     columns:
     - name: household_key
       data_type: bigint
       description: 'Columna fuente: household_key.'
-    - name: day
+      quote: true
+    - name: DAY
       data_type: bigint
       description: 'Columna fuente: DAY.'
-    - name: coupon_upc
+      quote: true
+    - name: COUPON_UPC
       data_type: bigint
       description: 'Columna fuente: COUPON_UPC.'
-    - name: campaign
+      quote: true
+    - name: CAMPAIGN
       data_type: bigint
       description: 'Columna fuente: CAMPAIGN.'
+      quote: true
   - name: hh_demographic
     description: Perfil demográfico disponible para una parte de los hogares.
     columns:
-    - name: age_desc
+    - name: AGE_DESC
       data_type: text
       description: 'Columna fuente: AGE_DESC.'
-    - name: marital_status_code
+      quote: true
+    - name: MARITAL_STATUS_CODE
       data_type: text
       description: 'Columna fuente: MARITAL_STATUS_CODE.'
-    - name: income_desc
+      quote: true
+    - name: INCOME_DESC
       data_type: text
       description: 'Columna fuente: INCOME_DESC.'
-    - name: homeowner_desc
+      quote: true
+    - name: HOMEOWNER_DESC
       data_type: text
       description: 'Columna fuente: HOMEOWNER_DESC.'
-    - name: hh_comp_desc
+      quote: true
+    - name: HH_COMP_DESC
       data_type: text
       description: 'Columna fuente: HH_COMP_DESC.'
-    - name: household_size_desc
+      quote: true
+    - name: HOUSEHOLD_SIZE_DESC
       data_type: text
       description: 'Columna fuente: HOUSEHOLD_SIZE_DESC.'
-    - name: kid_category_desc
+      quote: true
+    - name: KID_CATEGORY_DESC
       data_type: text
       description: 'Columna fuente: KID_CATEGORY_DESC.'
+      quote: true
     - name: household_key
       data_type: bigint
       description: 'Columna fuente: household_key.'
+      quote: true
   - name: product
     description: Catálogo de productos; grano esperado un producto.
     columns:
-    - name: product_id
+    - name: PRODUCT_ID
       data_type: bigint
       description: 'Columna fuente: PRODUCT_ID.'
-    - name: manufacturer
+      quote: true
+    - name: MANUFACTURER
       data_type: bigint
       description: 'Columna fuente: MANUFACTURER.'
-    - name: department
+      quote: true
+    - name: DEPARTMENT
       data_type: text
       description: 'Columna fuente: DEPARTMENT.'
-    - name: brand
+      quote: true
+    - name: BRAND
       data_type: text
       description: 'Columna fuente: BRAND.'
-    - name: commodity_desc
+      quote: true
+    - name: COMMODITY_DESC
       data_type: text
       description: 'Columna fuente: COMMODITY_DESC.'
-    - name: sub_commodity_desc
+      quote: true
+    - name: SUB_COMMODITY_DESC
       data_type: text
       description: 'Columna fuente: SUB_COMMODITY_DESC.'
-    - name: curr_size_of_product
+      quote: true
+    - name: CURR_SIZE_OF_PRODUCT
       data_type: text
       description: 'Columna fuente: CURR_SIZE_OF_PRODUCT.'
+      quote: true
+- name: dunnhumby_raw
+  schema: staging
+  description: Tablas originales cargadas en staging; conservan los nombres de columnas
+    del CSV.
+  tables:
+  - name: causal_data
   - name: transaction_data
-    description: Líneas de compra; basket_id por sí solo no identifica una fila.
-    columns:
-    - name: household_key
-      data_type: bigint
-      description: 'Columna fuente: household_key.'
-    - name: basket_id
-      data_type: bigint
-      description: 'Columna fuente: BASKET_ID.'
-    - name: day
-      data_type: bigint
-      description: 'Columna fuente: DAY.'
-    - name: product_id
-      data_type: bigint
-      description: 'Columna fuente: PRODUCT_ID.'
-    - name: quantity
-      data_type: bigint
-      description: 'Columna fuente: QUANTITY.'
-    - name: sales_value
-      data_type: numeric
-      description: 'Columna fuente: SALES_VALUE.'
-    - name: store_id
-      data_type: bigint
-      description: 'Columna fuente: STORE_ID.'
-    - name: retail_disc
-      data_type: numeric
-      description: 'Columna fuente: RETAIL_DISC.'
-    - name: trans_time
-      data_type: bigint
-      description: 'Columna fuente: TRANS_TIME.'
-    - name: week_no
-      data_type: bigint
-      description: 'Columna fuente: WEEK_NO.'
-    - name: coupon_disc
-      data_type: numeric
-      description: 'Columna fuente: COUPON_DISC.'
-    - name: coupon_match_disc
-      data_type: numeric
-      description: 'Columna fuente: COUPON_MATCH_DISC.'

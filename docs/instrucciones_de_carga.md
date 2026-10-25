@@ -52,3 +52,11 @@ CREATE DATABASE dunnhumby_etl;
    ```
 4. Ingresen su contraseña de PostgreSQL si la terminal se las solicita.
 5. Verifiquen en pgAdmin que las tablas y registros se hayan cargado correctamente en `dunnhumby_etl`.
+## Destino actual
+
+La carga de CSV escribe las ocho tablas originales en `public`.
+Si ya estan cargadas, no es necesario ejecutar otra vez el cargador.
+Ejecutar en pgAdmin `scripts/sql/staging/copiar_tablas_a_staging.sql` para copiar
+las ocho tablas a `staging`, y despues `00_validar_requisitos.sql`.
+Las vistas preparadas por dbt usan el prefijo `stg_`.
+Consultar `docs/capa_staging.md` para el orden completo.
