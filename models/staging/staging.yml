@@ -1,5 +1,44 @@
 version: 2
 models:
+- name: stg_campaign_table
+  description: Vista de staging; estandariza nombres y tipos y conserva todas las filas y categorias originales.
+  columns:
+  - name: campaign_id
+    data_type: integer
+    description: 'Columna fuente: CAMPAIGN.'
+  - name: household_id
+    data_type: integer
+    description: 'Columna fuente: household_key.'
+  - name: campaign_type
+    data_type: text
+    description: 'Columna fuente: DESCRIPTION.'
+- name: stg_hh_demographic
+  description: Vista de staging; estandariza nombres y tipos y conserva todas las filas y categorias originales.
+  columns:
+  - name: household_id
+    data_type: integer
+    description: 'Columna fuente: household_key.'
+  - name: age_range
+    data_type: text
+    description: 'Columna fuente: AGE_DESC.'
+  - name: marital_status_code
+    data_type: char(1)
+    description: 'Columna fuente: MARITAL_STATUS_CODE.'
+  - name: income_range
+    data_type: text
+    description: 'Columna fuente: INCOME_DESC.'
+  - name: homeownership_status
+    data_type: text
+    description: 'Columna fuente: HOMEOWNER_DESC.'
+  - name: household_composition
+    data_type: text
+    description: 'Columna fuente: HH_COMP_DESC.'
+  - name: household_size_category
+    data_type: text
+    description: 'Columna fuente: HOUSEHOLD_SIZE_DESC.'
+  - name: children_category
+    data_type: text
+    description: 'Columna fuente: KID_CATEGORY_DESC.'
 - name: stg_product
   description: >-
     Vista de siete columnas en minúscula. Conserva filas e identificadores;

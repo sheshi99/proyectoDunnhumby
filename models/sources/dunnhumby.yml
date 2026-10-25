@@ -146,7 +146,9 @@ sources:
   schema: staging
   description: Tablas originales cargadas desde los CSV.
   tables:
+  - name: campaign_table
   - name: causal_data
+  - name: hh_demographic
   - name: transaction_data
   - name: campaign_desc
   - name: coupon_redempt
