@@ -105,9 +105,9 @@ sources:
       data_type: text
       description: 'Columna fuente: KID_CATEGORY_DESC.'
       quote: true
-    - name: household_id
+    - name: household_key
       data_type: bigint
-      description: 'Columna fuente: household_id.'
+      description: 'Columna fuente: household_key.'
       quote: true
   - name: product
     description: Catálogo de productos; grano esperado un producto.

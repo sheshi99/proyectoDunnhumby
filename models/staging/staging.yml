@@ -18,27 +18,63 @@ models:
   - name: household_id
     data_type: integer
     description: 'Columna fuente: household_key.'
+    data_tests: [not_null, unique]
   - name: age_range
     data_type: text
     description: 'Columna fuente: AGE_DESC.'
+    data_tests:
+    - not_null
+    - accepted_values:
+        arguments:
+          values: ['19-24', '25-34', '35-44', '45-54', '55-64', '65+']
   - name: marital_status_code
-    data_type: char(1)
+    data_type: text
     description: 'Columna fuente: MARITAL_STATUS_CODE.'
+    data_tests:
+    - not_null
+    - accepted_values:
+        arguments:
+          values: ['A', 'B', 'U']
   - name: income_range
     data_type: text
     description: 'Columna fuente: INCOME_DESC.'
+    data_tests:
+    - not_null
+    - accepted_values:
+        arguments:
+          values: ['Under 15K', '15-24K', '25-34K', '35-49K', '50-74K', '75-99K', '100-124K', '125-149K', '150-174K', '175-199K', '200-249K', '250K+']
   - name: homeownership_status
     data_type: text
     description: 'Columna fuente: HOMEOWNER_DESC.'
+    data_tests:
+    - not_null
+    - accepted_values:
+        arguments:
+          values: ['Homeowner', 'Renter', 'Probable Owner', 'Probable Renter', 'Unknown']
   - name: household_composition
     data_type: text
     description: 'Columna fuente: HH_COMP_DESC.'
+    data_tests:
+    - not_null
+    - accepted_values:
+        arguments:
+          values: ['1 Adult Kids', '2 Adults Kids', '2 Adults No Kids', 'Single Female', 'Single Male', 'Unknown']
   - name: household_size_category
     data_type: text
     description: 'Columna fuente: HOUSEHOLD_SIZE_DESC.'
+    data_tests:
+    - not_null
+    - accepted_values:
+        arguments:
+          values: ['1', '2', '3', '4', '5+']
   - name: children_category
     data_type: text
     description: 'Columna fuente: KID_CATEGORY_DESC.'
+    data_tests:
+    - not_null
+    - accepted_values:
+        arguments:
+          values: ['1', '2', '3+', 'None/Unknown']
 - name: stg_product
   description: >-
     Vista de siete columnas en minúscula. Conserva filas e identificadores;
