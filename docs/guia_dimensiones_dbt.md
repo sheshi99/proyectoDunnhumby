@@ -1,4 +1,4 @@
-﻿# Guía del equipo: dimensiones en dbt
+# Guía del equipo: dimensiones en dbt
 
 Esta guía explica las cinco dimensiones que construimos, las decisiones tomadas y cómo ejecutarlas. Una dimensión guarda información descriptiva que permitirá analizar las ventas por producto, hogar, campaña, tiempo o contexto promocional.
 
@@ -16,7 +16,7 @@ Partimos de las ocho vistas de staging y reutilizamos su limpieza. Los modelos e
 | `dim_campaign` | Una campaña. | Toma `stg_campaign_descriptions` y guarda el tipo de campaña como descripción, junto con los días de inicio y fin. | `campaign_id`, conservado de la fuente. |
 | `dim_household` | Un hogar conocido. | Reúne hogares de compras, asignaciones a campañas, canjes y demografía; después incorpora sus atributos demográficos. | `household_id`, conservado de la fuente. |
 | `dim_time` | Un día observado en las compras. | Obtiene el día y la semana de `stg_transaction_data`, sin asignar fechas de calendario. | `time_id`, igual al número de día del dataset. |
-| `dim_promotional_context` | Una combinación de atributos promocionales observada en compras. | Guarda las condiciones promocionales descritas en la sección 2, sin productos ni importes de ventas. | `promotional_context_id`, generado por PostgreSQL con `IDENTITY`. |
+| `dim_promotional_context` | Una combinación de atributos promocionales observada en compras. | Guarda las condiciones promocionales descritas en la sección 2, sin productos ni importes de ventas. | `promotional_context_id`, primera columna y clave propia `IDENTITY`. |
 
 En **hogares**, usamos `UNION` para reunir identificadores sin repetirlos y `LEFT JOIN` para agregar la demografía. Así conservamos los hogares sin perfil, con atributos `NULL`.
 
