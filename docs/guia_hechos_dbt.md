@@ -6,7 +6,7 @@
 
 1. Lee `int_sales_promotional_context`, que conserva las transacciones y agrega los indicadores promocionales.
 2. Busca en `dim_promotional_context` la combinación de los siete atributos, comparando también los valores NULL. Recupera su `promotional_context_id`.
-3. Conserva producto, hogar, tienda, cesta, hora, cantidad e importes. El día se guarda como `time_id`. PostgreSQL agrega `sale_detail_id` como clave primaria IDENTITY.
+3. Conserva producto, hogar, tienda, cesta, hora, cantidad e importes. El día se guarda como `time_id`. El modelo coloca `sale_detail_id` primero y numera las l?neas con `row_number()`. La macro `initialize_identity` activa su IDENTITY y prepara la secuencia para continuar despu?s del ?ltimo ID cargado; el `post_hook` agrega la clave primaria.
 
 Las claves `product_id`, `household_id`, `time_id`, `campaign_id` y `promotional_context_id` relacionan los hechos con sus dimensiones mediante restricciones `FOREIGN KEY` físicas. `store_id` no tiene relación porque el esquema todavía no incluye una dimensión de tienda. Los `ref()` y las dependencias declaradas en el modelo ordenan la construcción de dimensiones antes que los hechos.
 
