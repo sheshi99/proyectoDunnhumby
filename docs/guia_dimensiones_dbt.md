@@ -1,4 +1,4 @@
-# Guía del equipo: dimensiones en dbt
+﻿# Guía del equipo: dimensiones en dbt
 
 Esta guía explica las cinco dimensiones que construimos, las decisiones tomadas y cómo ejecutarlas. Una dimensión guarda información descriptiva que permitirá analizar las ventas por producto, hogar, campaña, tiempo o contexto promocional.
 
@@ -98,7 +98,7 @@ Desde la raíz del proyecto, con el entorno Python activo, las tablas fuente dis
 python -m dotenv -f .env run -- dbt run --profiles-dir .
 ```
 
-Este es el **comando general**: ejecuta todos los modelos del proyecto, sin escribir sus nombres. Actualmente crea o reconstruye las ocho vistas `stg_`, la vista `int_sales_promotional_context` y las cinco tablas de dimensiones. Si después agregamos otros modelos, también los incluirá.
+Este es el **comando general**: ejecuta todos los modelos del proyecto, sin escribir sus nombres. Actualmente crea o reconstruye las ocho vistas `stg_`, la vista `int_sales_promotional_context`, las cinco tablas de dimensiones y `fact_sales`. Si después agregamos otros modelos, también los incluirá.
 
 dbt lee los `ref()` y determina el orden: primero las vistas limpias, luego la vista intermedia y después la dimensión que la utiliza. No hay que ejecutar el intermediario manualmente. Las tablas originales deben existir previamente; este comando no las importa. La carga del contexto promocional puede tardar varios minutos.
 
@@ -112,12 +112,7 @@ El `+` anterior al nombre incluye todas sus dependencias: en este ejemplo, tambi
 
 El usuario de conexión necesita lectura de las fuentes y permisos para crear objetos en los esquemas de destino. Los modelos con `{{ ... }}` se ejecutan mediante dbt, no pegándolos directamente en pgAdmin.
 
-En pgAdmin, actualizar **Schemas → data_warehouse → Tables** y consultar una muestra:
 
 ```sql
 select * from data_warehouse.dim_product limit 10;
 ```
-
-Cambiar el nombre para revisar las demás dimensiones. Cada una representa entidades distintas, por lo que no deben tener la misma cantidad de filas.
-
-La revisión previa registrada confirmó que la vista intermedia conservó las **2.595.732 líneas de compra y sus valores**, y que la dimensión produjo **1.165 contextos distintos**. Son referencias de esa carga; pueden cambiar si cambian las fuentes.

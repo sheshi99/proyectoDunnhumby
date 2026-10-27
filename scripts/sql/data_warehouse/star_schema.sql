@@ -68,18 +68,19 @@ CREATE TABLE IF NOT EXISTS data_warehouse.fact_sales
 (
     sale_detail_id bigint NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 9223372036854775807 CACHE 1 ),
     product_id bigint,
-    household_id bigint,
-    time_id bigint,
+    household_id integer,
+    time_id integer,
     campaign_id bigint,
     promotional_context_id bigint,
-    store_id bigint,
+    store_id integer,
     basket_id bigint,
     transaction_time integer,
-    quantity numeric,
-    sales_value numeric(18, 4),
-    retail_discount numeric(18, 4),
-    coupon_discount numeric(18, 4),
-    manufacturer_coupon_discount numeric(18, 4),
+    quantity integer,
+    -- Sin escala fija: conservar los valores exactos preparados en staging.
+    sales_value numeric,
+    retail_discount numeric,
+    coupon_discount numeric,
+    manufacturer_coupon_discount numeric,
     CONSTRAINT fact_sales_pkey PRIMARY KEY (sale_detail_id)
 );
 
