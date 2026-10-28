@@ -257,28 +257,6 @@ FROM public.fact_sales;
 La guía de hechos explica cómo comparar ese conteo con las transacciones de
 staging. Las pruebas deben terminar sin `FAIL` ni `ERROR`.
 
-### Consultas para los usuarios finales
-
-La [revisión de requisitos](docs/revision_requisitos_stakeholders.md) relaciona
-las necesidades de los cinco grupos de stakeholders con 16 consultas SQL.
-Los archivos de `scripts/sql/analisis_usuarios/` se ejecutan en Query Tool de
-`Data_warehouse`: gerencia, ventas, marketing, promociones y cupones, y análisis
-comercial. Solo consultan las tablas finales.
-
-Marketing utiliza los indicadores de campañas vigentes del contexto promocional,
-sin atribuir las ventas a una campaña específica.
-
-## Continuar el trabajo en otra sesión
-
-Con las bases, copias y conexiones ya preparadas, activar el entorno virtual y
-seguir desde el paso 8 para reconstruir las vistas y el modelo estrella.
-No repetir la carga de CSV ni la copia inicial de staging para reconstruir modelos.
-
-Si cambian los datos de `public`, primero se necesita actualizar las copias de
-staging. El script de copia actual no hace ese refresco. **El proceso de
-actualización y el job de cada dos horas siguen pendientes de implementación.**
-Hasta completar esa etapa, el flujo descrito se ejecuta manualmente.
-
 ## Estructura del proyecto
 
 | Carpeta o archivo | Contenido |
