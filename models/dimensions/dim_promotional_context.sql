@@ -1,6 +1,6 @@
 {{ config(
     materialized='table',
-    schema='data_warehouse',
+    schema='public' if target.name == 'warehouse',
     grants={'select': ['rol_data_warehouse']},
     post_hook=[
         "{{ initialize_identity(this, 'promotional_context_id') }}",
@@ -21,7 +21,7 @@ with contexts as (
         active_campaigns_count,
         product_associated_with_coupon,
         household_with_redemption_today
-    from {{ ref('int_sales_promotional_context') }}
+    from {{ staging_view('int_sales_promotional_context') }}
 )
 select
     row_number() over () as promotional_context_id,

@@ -1,11 +1,11 @@
 -- Materializa la tabla
--- Se define en el esquema data_warehouse
+-- El target warehouse materializa en Data_warehouse.public
 -- Se otorga permiso de lectura al rol rol_data_warehouse
 -- Se establece la llave primaria en el campo product_id
 
 {{ config(
     materialized='table',
-    schema='data_warehouse',
+    schema='public' if target.name == 'warehouse',
     grants={'select': ['rol_data_warehouse']},
     post_hook='alter table {{ this }} add primary key (product_id)'
 ) }}
@@ -21,4 +21,4 @@ select
     category::text as category,
     subcategory::text as subcategory,
     product_size::text as product_size
-from {{ ref('stg_product') }}
+from {{ staging_view('stg_product') }}

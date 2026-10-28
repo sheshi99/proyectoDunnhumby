@@ -3,7 +3,7 @@ models:
   - name: fact_sales
     description: >-
       Una fila por línea original de compra. Conserva medidas y signos de staging.
-      campaign_id es NULL: no se atribuye una venta a una campaña por su vigencia.
+      Las campañas se analizan mediante los indicadores de contexto promocional.
       manufacturer_coupon_discount conserva coupon_match_discount de la fuente;
       el nombre responde al diagrama, no a una nueva interpretación del descuento.
       Las relaciones se comprueban con dbt test y restricciones FOREIGN KEY físicas.
@@ -29,12 +29,6 @@ models:
           - relationships:
               to: ref('dim_time')
               field: time_id
-      - name: campaign_id
-        description: Sin atribución demostrada; NULL en esta implementación.
-        tests:
-          - relationships:
-              to: ref('dim_campaign')
-              field: campaign_id
       - name: promotional_context_id
         tests:
           - not_null

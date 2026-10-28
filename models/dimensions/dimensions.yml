@@ -2,7 +2,7 @@ version: 2
 models:
 
 - name: dim_product
-  description: Tabla de productos en data_warehouse basada en Script Diagrama Ingl?s.sql.
+  description: Tabla de productos en Data_warehouse.public.
     Una fila por producto, con el identificador original como clave primaria. Consume
     la limpieza de stg_product sin volver a transformar sus etiquetas.
   columns:
@@ -21,22 +21,8 @@ models:
   - name: product_size
     description: Tamaño descriptivo; conserva NULL si no está disponible.
 
-- name: dim_campaign
-  description: Tabla de campañas en data_warehouse basada en Script Diagrama Ingl?s.sql.
-    Consume la vista limpia stg_campaign_descriptions y conserva el identificador
-    original como clave primaria.
-  columns:
-  - name: campaign_id
-    description: Identificador original de campaña como bigint; clave primaria.
-  - name: campaign_description
-    description: Tipo de campaña preparado en staging.
-  - name: start_day
-    description: Índice del día de inicio en el dataset.
-  - name: end_day
-    description: Índice del día de finalización en el dataset.
-    
 - name: dim_household
-  description: Dimensión basada en Script Diagrama Ingl?s.sql. Reúne hogares de compras,
+  description: Dimensión de hogares en Data_warehouse.public. Reúne hogares de compras,
     asignaciones a campañas, canjes y perfiles demográficos. Conserva el identificador
     original; un hogar sin perfil tiene atributos NULL. No interpreta ni sustituye
     categorías originales Unknown o None/Unknown.
@@ -79,7 +65,7 @@ models:
     la tabla pueden cambiar los identity; coordinar la recarga futura de fact_sales.
   columns:
   - name: promotional_context_id
-    description: Clave primaria bigint generada como identity por PostgreSQL.
+    description: Clave primaria bigint calculada al construir la tabla; IDENTITY para futuras inserciones.
   - name: has_promotion
     description: >-
       Evidencia de exhibicion o anuncio segun listas de codigos reconocidos.
