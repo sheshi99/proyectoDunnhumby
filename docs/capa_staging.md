@@ -8,8 +8,10 @@
 - staging.stg_causal_data: vista preparada por dbt.
 
 Las ocho fuentes se copian de public a staging con copiar_tablas_a_staging.sql.
-Sus modelos de vistas dbt todavia no estan implementados. No se crean tablas
-finales de dimensiones y hechos en este paso.
+Los ocho modelos de vistas están implementados en `models/staging/`.
+También existe la vista `int_sales_promotional_context`, construida por el modelo
+de `models/intermediate/`. Las dimensiones y hechos se crean después en
+`Data_warehouse.public`, con una conexión diferente.
 
 ## Orden de ejecucion
 
@@ -17,9 +19,22 @@ finales de dimensiones y hechos en este paso.
 2. Si faltan las tablas de public, ejecutar python scripts/cargar_bd.py.
 3. Ejecutar completo copiar_tablas_a_staging.sql en pgAdmin.
 4. Ejecutar completo 00_validar_requisitos.sql en pgAdmin.
-5. Con DBT_PG_SCHEMA=staging, ejecutar en la terminal:
-6. Ejecutar 03_validar_staging.sql en pgAdmin: compara las dos vistas dbt
-   implementadas con sus tablas originales y evalua sus conversiones.
+5. Configurar `.env` y `profiles.yml` según la [guía de inicialización](inicializacion_dbt.md).
+6. Ejecutar desde la raíz del proyecto:
+
+   ```powershell
+   python -m dotenv -f .env run -- dbt run --profiles-dir . --target dev --select path:models/staging path:models/intermediate
+   ```
+
+7. Ejecutar las pruebas de staging:
+
+   ```powershell
+   python -m dotenv -f .env run -- dbt test --profiles-dir . --target dev --select path:models/staging
+   ```
+
+8. Ejecutar `03_validar_staging.sql` en pgAdmin conectado a `dunnhumby_etl`.
+   Compara específicamente las vistas de transacciones y datos causales con sus
+   tablas de trabajo y evalúa sus conversiones.
 
 Las vistas preparadas se crean exclusivamente con los modelos de dbt.
 Los descuentos conservan sus signos, los ceros y filas no se eliminan y
@@ -46,4 +61,4 @@ No borrar objetos con CASCADE. Los cambios anteriores de dbt pueden haber
 creado vistas sin prefijo; revisarlas antes de copiar sobre esos nombres.
 El usuario de dbt necesita SELECT en las fuentes y CREATE en staging;
 00_validar_requisitos.sql concede esos permisos a rol_staging, que debe estar
-asignado al usuario de dbt. No se ha ejecutado la copia ni dbt run desde el agente.
+asignado al usuario de dbt.

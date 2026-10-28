@@ -1,118 +1,155 @@
-# Guía del equipo: dimensiones en dbt
+# Cómo se crean las dimensiones con dbt
 
-Esta guía explica las cinco dimensiones que construimos, las decisiones tomadas y cómo ejecutarlas. Una dimensión guarda información descriptiva que permitirá analizar las ventas por producto, hogar, campaña, tiempo o contexto promocional.
+Las dimensiones son tablas que describen los productos, hogares, campañas,
+días y condiciones promocionales de las ventas. Esta guía explica de dónde
+salen y cómo se crean en la base de datos Data_warehouse.
 
-El recorrido de los datos es:
+## 1. Ubicación de los datos
 
-**Tablas originales en `staging` → vistas limpias `stg_` → dimensiones en `data_warehouse`.** Para contexto promocional hay un paso adicional entre las vistas limpias y la dimensión: `int_sales_promotional_context`.
+| Base de datos | Esquema | Contenido |
+| --- | --- | --- |
+| `dunnhumby_etl` | `public` | Las ocho tablas originales. |
+| `dunnhumby_etl` | `staging` | Las copias de trabajo, las vistas limpias `stg_` y la vista intermediaria `int_sales_promotional_context`. |
+| `Data_warehouse` | `public` | Las cuatro dimensiones y `fact_sales`. |
 
-Partimos de las ocho vistas de staging y reutilizamos su limpieza. Los modelos están en `models/dimensions/` y se materializan como tablas: dbt ejecuta cada consulta SQL y guarda su resultado. No necesitamos escribir un `INSERT` aparte.
 
-## 1. Qué contiene cada dimensión
+## 2. Dimensiones y fuentes de datos
 
-| Dimensión | Qué representa una fila | Origen y preparación | Clave primaria |
-| --- | --- | --- | --- |
-| `dim_product` | Un producto. | Toma `stg_product` y conserva fabricante, departamento, marca, categoría, subcategoría y tamaño. Ajusta nombres y tipos de columnas. | `product_id`, conservado de la fuente. |
-| `dim_campaign` | Una campaña. | Toma `stg_campaign_descriptions` y guarda el tipo de campaña como descripción, junto con los días de inicio y fin. | `campaign_id`, conservado de la fuente. |
-| `dim_household` | Un hogar conocido. | Reúne hogares de compras, asignaciones a campañas, canjes y demografía; después incorpora sus atributos demográficos. | `household_id`, conservado de la fuente. |
-| `dim_time` | Un día observado en las compras. | Obtiene el día y la semana de `stg_transaction_data`, sin asignar fechas de calendario. | `time_id`, igual al número de día del dataset. |
-| `dim_promotional_context` | Una combinación de atributos promocionales observada en compras. | Guarda las condiciones promocionales descritas en la sección 2, sin productos ni importes de ventas. | `promotional_context_id`, primera columna y clave propia `IDENTITY`. |
+El modelo contiene cuatro dimensiones. Las campañas permanecen como fuentes en
+staging para calcular los indicadores de contexto promocional. La
+[revisión de requisitos](revision_requisitos_stakeholders.md) documenta cómo
+estas cuatro dimensiones cubren los análisis de los cinco grupos de usuarios.
 
-En **hogares**, usamos `UNION` para reunir identificadores sin repetirlos y `LEFT JOIN` para agregar la demografía. Así conservamos los hogares sin perfil, con atributos `NULL`.
+| Modelo y tabla resultante | De dónde obtiene los datos | Qué representa una fila |
+| --- | --- | --- |
+| `dim_product` | Vista `stg_product`. | Un producto, con fabricante, departamento, marca, categoría y tamaño. |
+| `dim_household` | Vistas de transacciones, campañas por hogar, canjes y demografía. | Un hogar y sus datos demográficos disponibles. |
+| `dim_time` | Vista `stg_transaction_data`. | Un día de ventas y la semana que registra el dataset. |
+| `dim_promotional_context` | Vista `int_sales_promotional_context`. | Una combinación de condiciones promocionales. |
 
-En **tiempo**, conservamos la semana registrada en la fuente; no la calculamos dividiendo el día entre siete. Como no conocemos la fecha base, no inventamos meses ni años. Las restricciones impiden días duplicados y valores nulos de día o semana; si un día aparece con dos semanas distintas, la carga falla.
 
-Los días de inicio y fin de **campañas** también son índices del dataset. La asignación de campañas a hogares se obtiene de `stg_campaign_table`, no de `dim_campaign`.
+### Preparación de hogares en `dim_household`
 
-## 2. Cómo leer los modelos de contexto promocional
+El bloque `with households as (...)` es una consulta con nombre que se usa
+dentro del mismo modelo. No crea otra tabla permanente.
 
-Para seguir el código, abrir estos dos archivos en este orden:
+1. Busca los IDs de hogares en compras, campañas, canjes y demografía.
+2. Los reúne con `UNION`, que deja cada ID una sola vez.
+3. Agrega los datos demográficos con `LEFT JOIN`.
 
-1. `models/intermediate/int_sales_promotional_context.sql`: consulta las vistas limpias y calcula la información promocional que acompaña a cada compra.
-2. `models/dimensions/dim_promotional_context.sql`: guarda las descripciones promocionales en una tabla y les asigna una clave propia.
+Por ejemplo: si el hogar 100 compró pero no tiene perfil demográfico, sigue
+apareciendo en la dimensión. Sus datos demográficos quedan en `NULL`.
 
-### Paso 1. Identificar qué información necesitamos
+### Construcción de `dim_promotional_context`
 
-Las vistas `stg_` ya están limpias, pero cada una contiene información diferente. La compra indica el hogar, el producto, la tienda y el día; otras vistas indican anuncios, campañas y cupones. Para saber qué condiciones promocionales acompañaban a esa compra, el primer archivo consulta esas fuentes:
+Primero, la vista `int_sales_promotional_context` reúne para cada línea de venta
+información de anuncios, campañas, cupones y canjes. Esa vista permanece en staging.
+Resume las coincidencias antes de unirlas a ventas para evitar multiplicarlas.
 
-| Qué consulta | Qué obtiene |
+Después, el modelo de la dimensión toma estas siete columnas:
+
+| Columna | Qué indica |
 | --- | --- |
-| Anuncios del producto en la tienda y semana de la compra. | Si había exhibición o anuncio y sus códigos. |
-| Campañas asignadas al hogar y sus días de vigencia. | Cuántas campañas tenía activas ese día. |
-| Cupones asociados al producto y campañas vigentes. | Si existía un cupón asociado al producto ese día. |
-| Canjes del hogar en el día de la compra. | Si el hogar registró algún canje ese día. |
+| `has_promotion` | Evidencia de promoción: verdadero, falso o desconocido (`NULL`). |
+| `display_type` | Códigos de exhibición observados, guardados como lista JSON en texto. |
+| `mailer_type` | Códigos de anuncio observados, guardados como lista JSON en texto. |
+| `household_in_active_campaign` | Si el hogar tenía alguna campaña asignada vigente ese día. |
+| `active_campaigns_count` | Cuántas campañas asignadas tenía activas. |
+| `product_associated_with_coupon` | Si el producto tenía un cupón asociado a una campaña vigente. |
+| `household_with_redemption_today` | Si el hogar registró algún canje ese día. |
 
-Esto calcula información que no aparece junta en una sola vista de origen. Por ejemplo, para contar campañas activas necesitamos consultar tanto la asignación al hogar como las fechas de la campaña.
+`DISTINCT` guarda cada combinación de los siete valores una sola vez. Dos ventas
+con la misma combinación comparten un `promotional_context_id`; ambas ventas
+se conservan por separado en `fact_sales`.
 
-### Paso 2. Mantener una fila por compra
+Tener un cupón disponible no demuestra que se usó en esa compra. Un canje del
+hogar tampoco identifica por sí solo el producto comprado.
 
-En el primer archivo, los bloques `WITH` preparan los resultados antes de unirlos a las compras. Por ejemplo, si un hogar tiene dos campañas activas, se obtiene el número `2` para ese hogar y día. Así podemos agregar ese número a su compra sin convertirla en dos compras.
+## 3. Configuración de los modelos
 
-Los `LEFT JOIN` agregan los resultados y conservan las compras que no tienen coincidencias. El resultado actual de este archivo es una vista con las columnas originales de las ventas más los indicadores promocionales. Es una vista de preparación; no es la dimensión ni una tabla adicional del esquema estrella final.
+El modelo [dim_product.sql](../models/dimensions/dim_product.sql) contiene
+la configuración y la consulta que dbt utiliza para crear la tabla de productos.
 
-### Paso 3. Crear una descripción por contexto
-
-En el segundo archivo, el `SELECT` toma únicamente los siete atributos promocionales. No selecciona producto, hogar, cesta, código de cupón, cantidades ni importes.
-
-**Aquí `DISTINCT` no significa que las compras estén sucias o duplicadas.** Dos compras diferentes pueden tener exactamente las mismas condiciones promocionales. La dimensión necesita guardar esa descripción una sola vez.
-
-Ejemplo ilustrativo, mostrando solo dos de los siete atributos:
-
-| Compra original | Producto | Tiene promoción | Campañas activas |
-| --- | --- | --- | --- |
-| A | Arroz | Sí | 2 |
-| B | Leche | Sí | 2 |
-
-Las compras A y B son diferentes y ambas se conservan. Al seleccionar solamente «tiene promoción» y «campañas activas», obtenemos dos veces la descripción «Sí, 2». `DISTINCT` permite guardarla una sola vez en la dimensión. En el código real se comparan **los siete atributos juntos**: basta con que uno cambie para que sea otro contexto.
-
-PostgreSQL asigna a cada descripción su `promotional_context_id` mediante `IDENTITY`. Esa clave permite relacionar muchas compras con una misma descripción promocional, manteniendo cada transacción y su importe en la tabla de hechos.
-
-### Paso 4. Interpretar las columnas de la dimensión
-
-| Columna | Significado |
+| Parte del modelo | Para qué sirve |
 | --- | --- |
-| `promotional_context_id` | Identificador propio de la descripción promocional. |
-| `has_promotion` | `true`: hay evidencia de exhibición o anuncio; `false`: ausencia explícita; `NULL`: información insuficiente. |
-| `display_type` / `mailer_type` | Listas de códigos de exhibición y anuncio, guardadas como texto JSON. |
-| `household_in_active_campaign` | El hogar tiene al menos una campaña asignada vigente ese día. |
-| `active_campaigns_count` | Cantidad de campañas asignadas vigentes para el hogar. |
-| `product_associated_with_coupon` | El producto está asociado a un cupón de una campaña vigente; no demuestra que se usó en la compra. |
-| `household_with_redemption_today` | El hogar registró algún canje ese día; no identifica el producto que recibió el descuento. |
+| `materialized='table'` | dbt crea una tabla con el resultado del `SELECT`. |
+| `schema='public' if target.name == 'warehouse'` | Al usar la conexión `warehouse`, la tabla se crea en `public`. |
+| `grants={'select': ['rol_data_warehouse']}` | Concede al rol permiso para consultar la tabla. |
+| `post_hook` | Ejecuta instrucciones después de crear la tabla, por ejemplo agregar la clave primaria. |
+| `SELECT` | Elige las columnas, sus nombres y sus tipos. `::bigint`, por ejemplo, convierte un valor a entero grande. |
+| `staging_view('stg_product')` | Lee la vista limpia de la primera base de datos. |
 
-## 3. Cómo funciona la configuración
+`warehouse` es el nombre de la conexión en `profiles.yml`; esa conexión apunta
+a la base `Data_warehouse`. No es el nombre de un esquema.
 
-Al inicio de cada modelo, `config()` define la materialización como `table`, el esquema `data_warehouse` y los permisos de lectura para `rol_data_warehouse`. Los `post_hook` agregan las claves primarias y otras restricciones después de cargar el resultado; en contexto promocional también agregan el identificador `IDENTITY`.
+### Acceso a las vistas de staging
 
-Dentro de las consultas, **`ref('nombre_del_modelo')`** referencia otro modelo y permite que dbt determine el orden de ejecución. Por ejemplo, `dim_product` depende de `stg_product`.
+La macro [staging_view.sql](../macros/staging_view.sql) permite que los modelos
+ejecutados en `Data_warehouse` consulten las vistas de `dunnhumby_etl.staging`.
+Utiliza `dblink`, una función de PostgreSQL para consultar otra base de datos.
 
-Dos archivos completan la configuración:
+Durante la ejecución, la macro obtiene los nombres y tipos de las columnas
+y genera la consulta de lectura de la vista de origen. Internamente utiliza
+`ref()` para registrar la dependencia entre los modelos en dbt.
 
-- `macros/generate_schema_name.sql`: hace que las dimensiones se creen exactamente en `data_warehouse`, sin el prefijo `staging_`. dbt aplica esta macro automáticamente.
-- `models/dimensions/dimensions.yml`: documenta las dimensiones y sus columnas; por sí solo no crea tablas.
+Las dimensiones y la tabla de hechos se relacionan mediante `ref()`, que
+referencia sus tablas dentro de `Data_warehouse`. Las vistas de preparación
+permanecen en `dunnhumby_etl.staging`.
 
-## 4. Cómo ejecutarlas y revisar el resultado
+## 4. Ejecución del flujo
 
-Desde la raíz del proyecto, con el entorno Python activo, las tablas fuente disponibles y `.env` y `profiles.yml` configurados con `DBT_PG_SCHEMA=staging`, ejecutar:
+Antes de ejecutar, las ocho tablas de trabajo deben existir en staging, y deben
+estar configuradas las conexiones y permisos. Los archivos correspondientes son:
+
+| Archivo | Dónde se utiliza |
+| --- | --- |
+| `staging_roles_permisos.sql` | En `dunnhumby_etl`, para los permisos de staging. |
+| `warehouse_roles_permisos.sql` | En `Data_warehouse`, para los permisos de consulta del warehouse. |
+| `conexion_warehouse.sql` | Con `psql` conectado a `Data_warehouse`, para configurar `dblink`. Lee variables del entorno; no se pega completo en pgAdmin. |
+| `profiles.yml` | En el proyecto, para las conexiones `dev` y `warehouse`. `profiles.example.yml` es la plantilla. |
+
+Los tres archivos SQL están en `scripts/sql/Configuraciones/`. El usuario que
+ejecuta dbt necesita además permisos para crear sus vistas y tablas.
+
+Ejecutar los comandos en PowerShell desde la raíz del proyecto, donde están
+`.env` y `dbt_project.yml`, con el Python que tiene instaladas las dependencias
+de `requirements-dbt.txt`. Cada paso debe terminar correctamente antes de iniciar
+el siguiente.
+
+**Paso 1: crear las vistas limpias y la vista intermedia en la base de datos Dunnhumby_etl.**
 
 ```powershell
-python -m dotenv -f .env run -- dbt run --profiles-dir .
+python -m dotenv -f .env run -- dbt run --profiles-dir . --target dev --select path:models/staging path:models/intermediate
 ```
 
-Este es el **comando general**: ejecuta todos los modelos del proyecto, sin escribir sus nombres. Actualmente crea o reconstruye las ocho vistas `stg_`, la vista `int_sales_promotional_context`, las cinco tablas de dimensiones y `fact_sales`. Si después agregamos otros modelos, también los incluirá.
-
-dbt lee los `ref()` y determina el orden: primero las vistas limpias, luego la vista intermedia y después la dimensión que la utiliza. No hay que ejecutar el intermediario manualmente. Las tablas originales deben existir previamente; este comando no las importa. La carga del contexto promocional puede tardar varios minutos.
-
-Para trabajar solamente una dimensión y sus entradas, podemos usar un selector:
+**Paso 2: crear las dimensiones y hechos en la base de datos Data_warehouse, y ejecutar sus pruebas.**
 
 ```powershell
-python -m dotenv -f .env run -- dbt run --select +dim_promotional_context --profiles-dir .
+python -m dotenv -f .env run -- dbt build --profiles-dir . --target warehouse --select path:models/dimensions path:models/facts
 ```
 
-El `+` anterior al nombre incluye todas sus dependencias: en este ejemplo, también ejecuta `int_sales_promotional_context` y las vistas `stg_` que necesita, aunque no aparezcan escritas en el comando. Sin el `+`, solo se ejecuta el modelo seleccionado y se asume que sus entradas ya existen. Si usamos el comando general, no hace falta repetir esta ejecución individual.
+El segundo comando incluye hechos porque, al reconstruir el contexto promocional,
+sus IDs pueden cambiar y `fact_sales` debe usar los IDs de la nueva dimensión.
+El comando puede tardar varios minutos.
 
-El usuario de conexión necesita lectura de las fuentes y permisos para crear objetos en los esquemas de destino. Los modelos con `{{ ... }}` se ejecutan mediante dbt, no pegándolos directamente en pgAdmin.
+Para interpretar los comandos: `--target` elige la conexión, `--select` elige
+las carpetas de modelos y `--profiles-dir .` busca el perfil en la carpeta actual.
+`python -m dotenv -f .env run --` carga las variables del archivo `.env`.
 
+Con `warehouse`, utilizar la selección indicada. Un `dbt run` sin selección,
+o agregar `+` delante de un modelo, puede incluir también las vistas que deben
+construirse en la primera base.
+
+## 5. Verificación del resultado
+
+En pgAdmin, abrir Query Tool conectado a **`Data_warehouse`**:
 
 ```sql
-select * from data_warehouse.dim_product limit 10;
+select * from public.dim_product limit 10;
+select * from public.dim_household limit 10;
+select * from public.dim_time limit 10;
+select * from public.dim_promotional_context limit 10;
 ```
+
+La [guía de hechos](guia_hechos_dbt.md) describe la construcción y validación
+de la tabla de ventas.
