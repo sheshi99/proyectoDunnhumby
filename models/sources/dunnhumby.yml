@@ -31,9 +31,9 @@ sources:
       data_type: text
       description: 'Columna fuente: DESCRIPTION.'
       quote: true
-    - name: household_id
+    - name: household_key
       data_type: bigint
-      description: 'Columna fuente: household_id.'
+      description: 'Columna fuente: household_key.'
       quote: true
     - name: CAMPAIGN
       data_type: bigint
@@ -58,9 +58,9 @@ sources:
   - name: coupon_redempt
     description: Eventos de canje por hogar, día, cupón y campaña; no se deduplican.
     columns:
-    - name: household_id
+    - name: household_key
       data_type: bigint
-      description: 'Columna fuente: household_id.'
+      description: 'Columna fuente: household_key.'
       quote: true
     - name: DAY
       data_type: bigint

@@ -15,23 +15,27 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('dim_product')
-              field: product_id
+              arguments:
+                to: ref('dim_product')
+                field: product_id
       - name: household_id
         tests:
           - not_null
           - relationships:
-              to: ref('dim_household')
-              field: household_id
+              arguments:
+                to: ref('dim_household')
+                field: household_id
       - name: time_id
         tests:
           - not_null
           - relationships:
-              to: ref('dim_time')
-              field: time_id
+              arguments:
+                to: ref('dim_time')
+                field: time_id
       - name: promotional_context_id
         tests:
           - not_null
           - relationships:
-              to: ref('dim_promotional_context')
-              field: promotional_context_id
+              arguments:
+                to: ref('dim_promotional_context')
+                field: promotional_context_id
