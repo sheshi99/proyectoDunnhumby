@@ -20,6 +20,9 @@ El proceso sigue este orden: carga original → copia a staging → vistas limpi
 Los pasos siguientes se realizan para preparar una instalación del proyecto.
 Si una etapa ya está completa, comprobar su resultado y continuar con la siguiente.
 Los comandos de terminal se ejecutan en PowerShell desde la raíz del repositorio.
+Para reproducir la configuración, utilizar el mismo usuario PostgreSQL en el
+cargador, los scripts de permisos, `.env` y la conexión `psql`. Ese usuario debe
+tener permisos para crear las bases, roles, extensión y objetos del proyecto.
 
 ### 1. Preparar el entorno y los archivos de datos
 
@@ -90,7 +93,8 @@ Abrir cada archivo SQL en Query Tool, seleccionando la base indicada:
 Usar el usuario que creará los objetos dbt, con los permisos administrativos
 necesarios para ejecutar estos scripts. Configuran los roles `rol_staging` y
 `rol_data_warehouse`, sus permisos y los permisos predeterminados para objetos
-futuros. Las consultas de comprobación al final deben devolver `true`.
+futuros. Verificar que los resultados muestren la base, el esquema y el rol
+correspondientes; las comprobaciones de permisos del warehouse deben devolver `true`.
 
 ### 5. Copiar las ocho tablas a staging
 
