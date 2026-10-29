@@ -4,8 +4,8 @@
 El modelo que la crea es [fact_sales.sql](../models/facts/fact_sales.sql).
 La tabla resultante queda en **`Data_warehouse.public.fact_sales`**.
 
-La [revisión de requisitos](revision_requisitos_stakeholders.md) enlaza las
-consultas de gerencia, ventas, marketing, promociones y análisis comercial.
+Las medidas y dimensiones permiten elaborar consultas de gerencia, ventas,
+marketing, promociones y análisis comercial.
 
 ## 1. Qué información representa cada fila
 
