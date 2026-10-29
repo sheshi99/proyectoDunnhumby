@@ -1,5 +1,5 @@
--- Configura la conexión a la base de datos remota (Data_warehouse) usando dblink.
--- Se ejecuta con spql y requiere que las variables de entorno estén definidas en el sistema operativo.
+-- Ejecutar en Data_warehouse: configura la lectura de dunnhumby_etl usando dblink.
+-- Se ejecuta con psql y requiere las variables de entorno del archivo .env.
 
 
 \set ON_ERROR_STOP on

@@ -77,12 +77,12 @@ LEFT JOIN public.campaign_table ct ON cd."CAMPAIGN" = ct."CAMPAIGN";
 --   campañas tienen hogares asignados, 0 campañas huérfanas).
 --
 -- DECISIONES Y CONSIDERACIONES PARA EL ETL:
--- - Se estructurará la dimensión de campañas (dim_campaign) usando CAMPAIGN 
---   como identificador clave.
+-- - CAMPAIGN se conserva en staging para relacionar campañas con hogares,
+--   cupones y vigencias que alimentan los indicadores de contexto promocional.
 -- - Se asegurará el formato estandarizado del texto en DESCRIPTION para 
 --   categorizar los tipos de campaña (TypeA, TypeB, TypeC) en dbt.
--- - Se validará e incluirá el cálculo de la duración de la campaña mediante 
---   la métrica derivada (END_DAY - START_DAY).
+-- - START_DAY y END_DAY permiten identificar los días de vigencia de las
+--   campañas asignadas. El modelo actual no materializa una dimensión de campañas.
 --
 -- CONCLUSIÓN FINAL:
 -- La tabla campaign_desc presenta una calidad de datos óptima y sin anomalías. 
