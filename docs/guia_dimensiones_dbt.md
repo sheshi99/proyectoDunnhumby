@@ -16,9 +16,9 @@ salen y cómo se crean en la base de datos Data_warehouse.
 ## 2. Dimensiones y fuentes de datos
 
 El modelo contiene cuatro dimensiones. Las campañas permanecen como fuentes en
-staging para calcular los indicadores de contexto promocional. La
-[revisión de requisitos](revision_requisitos_stakeholders.md) documenta cómo
-estas cuatro dimensiones cubren los análisis de los cinco grupos de usuarios.
+staging para calcular los indicadores de contexto promocional. Gerencia, ventas,
+marketing, promociones y análisis comercial utilizan esas dimensiones y las
+medidas de `fact_sales` para sus consultas.
 
 | Modelo y tabla resultante | De dónde obtiene los datos | Qué representa una fila |
 | --- | --- | --- |

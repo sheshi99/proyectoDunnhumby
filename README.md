@@ -20,6 +20,9 @@ El proceso sigue este orden: carga original → copia a staging → vistas limpi
 Los pasos siguientes se realizan para preparar una instalación del proyecto.
 Si una etapa ya está completa, comprobar su resultado y continuar con la siguiente.
 Los comandos de terminal se ejecutan en PowerShell desde la raíz del repositorio.
+Para reproducir la configuración, utilizar el mismo usuario PostgreSQL en el
+cargador, los scripts de permisos, `.env` y la conexión `psql`. Ese usuario debe
+tener permisos para crear las bases, roles, extensión y objetos del proyecto.
 
 ### 1. Preparar el entorno y los archivos de datos
 
@@ -90,7 +93,8 @@ Abrir cada archivo SQL en Query Tool, seleccionando la base indicada:
 Usar el usuario que creará los objetos dbt, con los permisos administrativos
 necesarios para ejecutar estos scripts. Configuran los roles `rol_staging` y
 `rol_data_warehouse`, sus permisos y los permisos predeterminados para objetos
-futuros. Las consultas de comprobación al final deben devolver `true`.
+futuros. Verificar que los resultados muestren la base, el esquema y el rol
+correspondientes; las comprobaciones de permisos del warehouse deben devolver `true`.
 
 ### 5. Copiar las ocho tablas a staging
 
@@ -257,12 +261,45 @@ FROM public.fact_sales;
 La guía de hechos explica cómo comparar ese conteo con las transacciones de
 staging. Las pruebas deben terminar sin `FAIL` ni `ERROR`.
 
+### 11. Programar la actualización cada dos horas
+
+Con el flujo anterior preparado, ejecutar una vez el proceso completo:
+
+```powershell
+python scripts/ejecutar_job.py
+```
+
+Este proceso actualiza las ocho tablas de staging desde `public`, ejecuta dbt
+con sus pruebas en ambas conexiones y compara las medidas de hechos con staging.
+El resultado debe ser `CORRECTO` en `logs/jobs/ultima_ejecucion.json`.
+
+Registrar la tarea desde la cuenta de Windows que utilizará el proyecto:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+    -File .\scripts\registrar_job.ps1 `
+    -PythonExecutable (Get-Command python).Source
+```
+
+La tarea **`Dunnhumby_ETL_cada_2_horas`** se registra en el **Programador de tareas
+de Windows** y empieza a ejecutarse dos horas después del registro. Utiliza dbt
+para las transformaciones y trabaja con `dunnhumby_etl` y `Data_warehouse`.
+El equipo debe estar encendido, PostgreSQL disponible y la cuenta de Windows
+debe mantener una sesión iniciada. Se puede bloquear la pantalla.
+
+Los resultados se guardan en `logs/jobs/`, excluido de Git. La
+[guía del job](docs/job_etl.md) explica las etapas, las comprobaciones de registro
+y los comandos para consultar, iniciar o desactivar la tarea. Si ya está
+registrada y activa en ese equipo, no hace falta repetir la instalación.
+
 ## Estructura del proyecto
 
 | Carpeta o archivo | Contenido |
 | --- | --- |
 | `database/` | CSV locales, excluidos de Git. |
 | `scripts/cargar_bd.py` | Carga original desde CSV a PostgreSQL. |
+| `scripts/ejecutar_job.py` | Actualización completa de staging y ejecución de dbt con validaciones. |
+| `scripts/registrar_job.ps1` | Registro y comprobación de la tarea de Windows cada dos horas. |
 | `scripts/sql/` | Configuración, revisión de calidad, copia y validación de staging. |
 | `models/sources/` | Declaraciones de las tablas que dbt usa como entrada. |
 | `models/staging/` | Modelos de las vistas limpias. |

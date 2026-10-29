@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS public.fact_sales
     product_id bigint,
     household_id integer,
     time_id integer,
-    promotional_context_id bigint,
+    promotional_context_id bigint NOT NULL,
     store_id integer,
     basket_id bigint,
     transaction_time integer,

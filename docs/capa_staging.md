@@ -55,8 +55,10 @@ no repetir la copia; continuar con los requisitos. Si solo existen algunos
 objetos, revisar como completar la migracion antes de continuar.
 Si hay un error, ejecutar ROLLBACK por separado antes de reintentar.
 
-Los datos de public permanecen intactos. Las copias de staging no se actualizan
-automaticamente cuando cambia public; una recarga necesita un proceso aparte.
+Los datos de public permanecen intactos. La copia inicial no refresca las tablas
+existentes. Con el [job configurado](job_etl.md), el proceso reemplaza el contenido
+de staging desde public cada dos horas y ejecuta después las transformaciones dbt.
+Los cambios de public se reflejan tras una ejecución completa correcta, no al instante.
 No borrar objetos con CASCADE. Los cambios anteriores de dbt pueden haber
 creado vistas sin prefijo; revisarlas antes de copiar sobre esos nombres.
 El usuario de dbt necesita SELECT en las fuentes y CREATE en staging;
