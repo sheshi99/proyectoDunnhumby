@@ -1,151 +1,70 @@
-# Job de actualización del proyecto
+# Funcionamiento del job ETL
 
-El proceso está definido en `scripts/ejecutar_job.py`. Ejecuta el flujo completo
-con PostgreSQL y dbt, usando las conexiones de `.env` y `profiles.yml`.
+Esta guía explica qué hace el job **`Dunnhumby_ETL_cada_2_horas`** y cómo revisar
+sus resultados. Para instalarlo o reconfigurarlo, ver la
+[configuración de pgAgent](pgagent.md).
 
-La tarea se llama **`Dunnhumby_ETL_cada_2_horas`** y se administra en el
-**Programador de tareas de Windows**. Windows inicia el proceso; PostgreSQL
-almacena los datos y dbt sigue siendo la herramienta que construye los modelos.
-La tarea coordina las dos bases, no se guarda como una tabla en ninguna de ellas.
+## Qué hace
 
-## Recorrido de una ejecución
+El job actualiza `Data_warehouse` a partir de las copias de staging. Se ejecuta
+cada dos horas (minuto 00 de las horas pares) y en cada ejecución:
 
-| Orden | Base o conexión | Operación |
-| --- | --- | --- |
-| 1 | Ambas bases | Comprobar las tablas, dependencias y conexión de lectura `dblink`. |
-| 2 | `dunnhumby_etl` | Reemplazar el contenido de las ocho tablas de staging con una instantánea de public. |
-| 3 | dbt, target `dev` | Construir las vistas limpias y el contexto promocional, y ejecutar las pruebas de staging. |
-| 4 | dbt, target `warehouse` | Construir las cuatro dimensiones y hechos, y ejecutar sus pruebas. |
-| 5 | Ambas bases | Comparar conteos, cantidades, ventas y los tres descuentos entre staging y hechos. |
+1. pgAgent llama a [ejecutar_dbt_pgagent.ps1](../scripts/ejecutar_dbt_pgagent.ps1).
+2. dbt lee las vistas `stg_` y las compara con las dimensiones y hechos.
+3. Inserta, actualiza o elimina solo las diferencias y ejecuta las pruebas.
+4. La macro `limpiar_dimensiones` borra dimensiones que ya no se usan y no tienen ventas.
 
-El refresco conserva las tablas y vistas existentes de staging. No vuelve a
-ejecutar la carga de CSV ni modifica las tablas originales de public. El contenido
-se reemplaza completo, por lo que se reflejan inserciones, modificaciones y
-eliminaciones del origen.
-
-Las ocho copias se actualizan en una sola transacción. Si falla esa etapa, se
-revierte el refresco. dbt trabaja por modelo: si una transformación falla, pueden
-haber terminado otros modelos antes del error. El proceso se detiene y debe
-repetirse completo después de corregir la causa.
-
-Un bloqueo de PostgreSQL evita dos ejecuciones simultáneas de este script.
-Mientras trabaja el job, no ejecutar manualmente otros comandos dbt que
-reconstruyan las mismas tablas ni refrescar staging desde otra sesión.
-
-## Comprobación y ejecución manual
-
-Desde la raíz del proyecto, con el Python que tiene instaladas las dependencias
-de `requirements-dbt.txt`, comprobar la configuración sin cambiar datos:
-
-```powershell
-python scripts/ejecutar_job.py --comprobar
+```text
+Fuera del job: CSV / public → copias físicas de staging
+Job cada dos horas: staging → Data_warehouse
 ```
 
-Para ejecutar el flujo completo:
+El job no modifica staging ni consulta `public`. Para que un dato llegue al
+warehouse, primero debe estar cargado en las copias de staging.
 
-```powershell
-python scripts/ejecutar_job.py
+No usa tablas auxiliares, triggers ni `TRUNCATE`. Si una ejecución falla, la
+siguiente vuelve a comparar todo y aplica lo que falte. Cada modelo guarda su
+trabajo por separado: un error posterior no revierte los modelos ya terminados.
+
+## Cómo se conservan los IDs
+
+- `fact_sales.sale_detail_id` se mantiene en las filas sin cambios y en las
+  correcciones de medidas. Si cambian hogar, cesta, producto, tienda, día u hora,
+  la venta se elimina y se inserta como nueva, porque los CSV no tienen un
+  identificador único. Las filas duplicadas se conservan.
+- `dim_promotional_context` reutiliza el ID de cada combinación mediante `context_key`.
+- Productos y hogares guardan solo sus atributos actuales, sin historial.
+- Las dimensiones usadas por alguna venta no se borran, para mantener las FK.
+
+Por eso los modelos exigen que las tablas ya existan y rechazan `--full-refresh`.
+
+## Revisar las ejecuciones
+
+En **pgAdmin → pgAgent Jobs → Dunnhumby_ETL_cada_2_horas → Statistics** se ve
+el resultado de cada ejecución. El detalle de dbt queda en
+`logs/jobs/*_pgagent.log` y el resumen de la última en
+`logs/jobs/ultima_ejecucion.json`.
+
+También se puede consultar desde Query Tool conectado a `postgres`:
+
+```sql
+SELECT jobname, jobenabled, jobnextrun, joblastrun
+FROM pgagent.pga_job WHERE jobname = 'Dunnhumby_ETL_cada_2_horas';
+
+SELECT l.*
+FROM pgagent.pga_joblog l
+JOIN pgagent.pga_job j ON j.jobid = l.jlgjobid
+WHERE j.jobname = 'Dunnhumby_ETL_cada_2_horas'
+ORDER BY l.jlgid DESC
+LIMIT 20;
 ```
 
-El script puede ejecutarse desde cualquier carpeta porque obtiene la raíz del
-proyecto a partir de su propia ubicación. No necesita ingresar contraseñas en
-la terminal: las lee del `.env` local. El usuario PostgreSQL requiere lectura
-en public y permisos de actualización en staging, además de los permisos dbt
-para crear y reconstruir las tablas del warehouse.
+## Recomendaciones de operación
 
-## Resultados y errores
-
-Cada ejecución genera un `.log` con el detalle de las etapas y un `.json` con su
-resultado en `logs/jobs/`. Estos archivos están excluidos de Git.
-
-`logs/jobs/ultima_ejecucion.json` resume la última ejecución completa del proceso:
-
-- `CORRECTO`: refresco, modelos, pruebas y comprobación de medidas terminados.
-- `ERROR`: una etapa falló; el mensaje y el log indican dónde revisar.
-
-La comprobación sin cambios usa el estado `COMPROBADO`. Si ya hay una ejecución
-activa, la nueva solicitud termina con `OMITIDO` y deja que la primera continúe.
-Estos dos casos no sustituyen el resumen de la última ejecución completa.
-
-El código de salida es cero al completar el proceso, comprobar la configuración
-o saltar una solicitud simultánea. Es distinto de cero cuando ocurre un error.
-
-El equipo debe permanecer encendido, con PostgreSQL disponible y acceso local
-a la carpeta del proyecto para realizar las ejecuciones programadas.
-
-## Registrar la tarea cada dos horas
-
-Completar la preparación del README y verificar una ejecución manual correcta
-antes de registrar la tarea. Utilizar la cuenta de Windows que trabajará con el
-proyecto y el Python que tiene las dependencias instaladas. Si se usa un entorno
-virtual, activarlo antes de ejecutar:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-    -File .\scripts\registrar_job.ps1 `
-    -PythonExecutable (Get-Command python).Source
-```
-
-El registro realiza una comprobación inicial y otra lanzada desde el propio
-Programador de tareas. Ambas comprueban el acceso sin actualizar datos. Si pasan,
-la acción queda configurada para ejecutar el proceso completo cada dos horas,
-a partir de dos horas después del registro. El script muestra la próxima fecha.
-
-La tarea utiliza la cuenta que ejecutó el registro, con permisos limitados y sin
-guardar una contraseña de Windows. **Esa cuenta debe mantener la sesión iniciada**
-para que se ejecute. Bloquear la pantalla conserva la sesión; cerrar sesión
-impide la ejecución hasta que se vuelva a iniciar. El equipo encendido por sí
-solo no basta. Los procesos se lanzan en segundo plano con la ventana oculta.
-
-Windows evita iniciar otra instancia si la tarea sigue activa. El bloqueo de
-PostgreSQL también protege frente a invocaciones manuales simultáneas. Se
-establece un máximo de ejecución de una hora y cincuenta minutos. Si se supera
-ese límite, revisar el estado de los modelos y volver a ejecutar el flujo completo.
-
-El registro no instala servicios de Windows ni utiliza pgAgent. El archivo
-`logs/jobs/tarea_programada.xml` conserva la definición local para revisión;
-no contiene credenciales y está excluido de Git junto con los logs.
-
-## Consultar y controlar la tarea
-
-Abrir **Programador de tareas → Biblioteca del Programador de tareas** y buscar
-`Dunnhumby_ETL_cada_2_horas`. El Administrador de tareas sirve para ver procesos;
-la programación se consulta y modifica en el Programador de tareas.
-
-Para revisar el estado desde PowerShell:
-
-```powershell
-Get-ScheduledTask -TaskName 'Dunnhumby_ETL_cada_2_horas' |
-    Select-Object TaskName, State
-
-Get-ScheduledTaskInfo -TaskName 'Dunnhumby_ETL_cada_2_horas' |
-    Select-Object LastRunTime, LastTaskResult, NextRunTime
-```
-
-El resultado cero indica que el proceso terminó sin error; el resumen JSON
-permite distinguir una ejecución completa de una comprobación o una omisión.
-La prueba realizada al registrar la tarea corresponde a una comprobación de
-acceso; el resultado de la carga completa se consulta en `ultima_ejecucion.json`.
-
-Para solicitar una ejecución completa sin esperar al siguiente horario:
-
-```powershell
-Start-ScheduledTask -TaskName 'Dunnhumby_ETL_cada_2_horas'
-```
-
-Para desactivar futuras ejecuciones:
-
-```powershell
-Disable-ScheduledTask -TaskName 'Dunnhumby_ETL_cada_2_horas'
-```
-
-Para volver a habilitarlas:
-
-```powershell
-Enable-ScheduledTask -TaskName 'Dunnhumby_ETL_cada_2_horas'
-```
-
-Deshabilitar la tarea no detiene una ejecución que ya esté trabajando. Si cambia
-la ubicación del proyecto o el Python utilizado, volver a ejecutar el registro
-cuando la tarea esté detenida. Si el registro falla, la tarea queda deshabilitada
-hasta corregir el problema y registrarla nuevamente.
+- El equipo, PostgreSQL y el servicio `DunnhumbyPgAgent` deben estar encendidos.
+  No hace falta tener pgAdmin abierto ni una sesión iniciada.
+- Para una ejecución extra, usar **Run now** en pgAdmin.
+- No ejecutar dbt manualmente sobre el warehouse mientras el job corre; el
+  lanzador impide dos ejecuciones a la vez en el mismo equipo.
+- No cargar datos en staging durante una ejecución; esos cambios pueden
+  aparecer recién en la siguiente.
