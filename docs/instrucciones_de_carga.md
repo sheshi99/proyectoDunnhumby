@@ -45,7 +45,7 @@ CREATE DATABASE dunnhumby_etl;
 
 ### 5. Configurar Credenciales y Ejecutar la Carga
 1. Abran el archivo `scripts/cargar_bd.py` en VS Code.
-2. Modifiquen su usuario y contraseña de PostgreSQL local en la cadena de conexión (si aplica).
+2. Revisen el usuario, host, puerto y nombre de la base. La contraseña se solicita en la terminal y no se escribe en el código.
 3. Corran el script desde la terminal de VS Code:
    ```bash
    python scripts/cargar_bd.py

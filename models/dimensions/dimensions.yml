@@ -1,0 +1,84 @@
+version: 2
+models:
+
+- name: dim_product
+  description: Tabla de productos en Data_warehouse.public.
+    Una fila por producto, con el identificador original como clave primaria. Consume
+    la limpieza de stg_product sin volver a transformar sus etiquetas.
+  columns:
+  - name: product_id
+    description: Clave primaria bigint; PRODUCT_ID original.
+  - name: manufacturer
+    description: Identificador de fabricante como bigint, conforme al diagrama.
+  - name: department
+    description: Departamento preparado en staging.
+  - name: brand
+    description: Marca preparada en staging.
+  - name: category
+    description: Categoría preparada en staging.
+  - name: subcategory
+    description: Subcategoría preparada en staging.
+  - name: product_size
+    description: Tamaño descriptivo; conserva NULL si no está disponible.
+
+- name: dim_household
+  description: Dimensión de hogares en Data_warehouse.public. Reúne hogares de compras,
+    asignaciones a campañas, canjes y perfiles demográficos. Conserva el identificador
+    original; un hogar sin perfil tiene atributos NULL. No interpreta ni sustituye
+    categorías originales Unknown o None/Unknown.
+  columns:
+  - name: household_id
+    description: Identificador original del hogar como bigint; clave primaria.
+  - name: age_group
+    description: Rango de edad original; NULL sin perfil disponible.
+  - name: marital_status
+    description: Código original de estado civil; no se inventa su significado.
+  - name: income_range
+    description: Rango de ingresos original.
+  - name: homeowner_status
+    description: Categoría original de tenencia de vivienda, conservada como texto.
+  - name: household_composition
+    description: Composición descriptiva original del hogar.
+  - name: household_size
+    description: Categoría de tamaño, conservando rangos como 5+.
+  - name: kids_category
+    description: Categoría original de hijos.
+
+- name: dim_time
+  description: >-
+    Una fila por dia observado en las transacciones. Usa los indices originales
+    del dataset sin asignar fechas, anios, meses ni trimestres. time_id coincide
+    con dataset_day_number y permite relacionar cada venta con su dia y semana.
+  columns:
+  - name: time_id
+    description: Clave primaria bigint basada en transaction_day.
+  - name: dataset_day_number
+    description: Dia original del dataset; obligatorio y unico.
+  - name: dataset_week_number
+    description: Semana original de la transaccion; obligatoria, no calculada.
+
+- name: dim_promotional_context
+  description: >-
+    Combinaciones de contexto observadas en ventas. No atribuye UPC ni campana
+    individual a una transaccion. Los indicadores de cupones expresan disponibilidad
+    por producto y vigencia, no recepcion individual ni uso demostrado. Al reconstruir
+    la tabla pueden cambiar los identity; coordinar la recarga futura de fact_sales.
+  columns:
+  - name: promotional_context_id
+    description: Clave primaria bigint calculada al construir la tabla; IDENTITY para futuras inserciones.
+  - name: has_promotion
+    description: >-
+      Evidencia de exhibicion o anuncio segun listas de codigos reconocidos.
+      NULL sin cobertura o informacion suficiente. No significa uso de cupon.
+  - name: display_type
+    description: Lista JSON ordenada de codigos distintos de display, guardada como texto; NULL sin cobertura.
+  - name: mailer_type
+    description: Lista JSON ordenada de codigos distintos de mailer, guardada como texto; no implica pares con display.
+  - name: household_in_active_campaign
+    description: El hogar tiene al menos una campana asignada vigente ese dia.
+  - name: active_campaigns_count
+    description: Numero de campanas distintas asignadas y vigentes; cero si no hay.
+  - name: product_associated_with_coupon
+    description: Existe un cupon del producto asociado a una campana vigente; no garantiza recepcion por el hogar.
+  - name: household_with_redemption_today
+    description: El hogar tiene alguna redencion registrada el mismo dia de compra, sin atribucion a una linea.

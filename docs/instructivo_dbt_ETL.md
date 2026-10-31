@@ -8,9 +8,10 @@ staging.tabla_original  →  dbt transforma los datos  →  staging.stg_tabla
      entrada                         modelo SQL             salida
 ```
 
-`staging` es donde están las tablas originales cargadas desde los CSV.
-`staging` es donde dbt crea las vistas limpias. Son esquemas distintos y cada
-uno cumple una función distinta.
+En `dunnhumby_etl.public` se conservan las tablas originales cargadas desde CSV.
+Sus copias de trabajo están en `dunnhumby_etl.staging`; en ese mismo esquema dbt
+crea las vistas limpias con prefijo `stg_`. Las dimensiones y hechos se construyen
+posteriormente en la segunda base, `Data_warehouse`, según el [README](../README.md).
 
 ## Paso 1: revisa la calidad de la tabla
 
@@ -30,7 +31,7 @@ ejecútala en pgAdmin antes de decidir.
 ## Paso 2: declara la tabla de entrada
 
 Abre `models/sources/dunnhumby.yml`. Busca la fuente `dunnhumby_raw`, que en
-este proyecto apunta a `public`, y agrega el nombre de la tabla bajo `tables:`.
+este proyecto apunta a `staging`, y agrega el nombre de la tabla bajo `tables:`.
 Por ejemplo:
 
 ```yaml
@@ -43,7 +44,7 @@ Por ejemplo:
 ```
 
 `nombre_de_otra_tabla` es un ejemplo: reemplázalo por el nombre real. Inclúyelo
-en `dunnhumby_raw` solo si la tabla está en `public`. Todas las tablas listadas
+en `dunnhumby_raw` solo si la tabla está en `staging`. Todas las tablas listadas
 bajo una fuente comparten el mismo esquema.
 
 Esta declaración no crea tablas. Le indica a dbt dónde encontrar las tablas
@@ -103,7 +104,7 @@ bloque `models:` en el mismo archivo.
 Abre PowerShell en la carpeta del proyecto. Ejecuta:
 
 ```powershell
-python -m dotenv -f .env run -- dbt debug --profiles-dir .
+python -m dotenv -f .env run -- dbt debug --profiles-dir . --target dev
 ```
 
 Continúa cuando el resultado muestre `All checks passed!`. Este comando
@@ -130,21 +131,21 @@ El nombre para `--select` viene del archivo SQL, sin `.sql`. Si el archivo se
 llama `stg_nombre_de_otra_tabla.sql`, ejecuta:
 
 ```powershell
-python -m dotenv -f .env run -- dbt run --select stg_nombre_de_otra_tabla --profiles-dir .
+python -m dotenv -f .env run -- dbt run --target dev --select stg_nombre_de_otra_tabla --profiles-dir .
 ```
 
 Para ejecutar todos los modelos SQL que estén dentro de `models/staging/`, usa:
 
 ```powershell
-python -m dotenv -f .env run -- dbt run --select path:models/staging --profiles-dir .
+python -m dotenv -f .env run -- dbt run --target dev --select path:models/staging --profiles-dir .
 ```
 
 Este selector incluye los modelos de esa carpeta, incluidos los que se agreguen
 más adelante. `dbt run` no ejecuta las pruebas declaradas en YAML; para correrlas,
 usa `dbt test`.
 
-En este proyecto, `.env` configura el esquema de salida como `staging`, y
-`dbt_project.yml` configura los modelos como vistas. Por eso dbt crea las
+En este proyecto, el target `dev` configura el esquema de salida como `staging`,
+y los modelos de esa carpeta se materializan como vistas. Por eso dbt crea las
 salidas en `staging`. `dbt run` sin `--select` intenta ejecutar todos los
 modelos del proyecto.
 
@@ -154,10 +155,10 @@ En pgAdmin, consulta la vista nueva. Compara la cantidad de filas con la tabla
 original si el modelo no elimina registros. Por ejemplo:
 
 ```sql
-SELECT COUNT(*) FROM public.campaign_desc;
+SELECT COUNT(*) FROM staging.campaign_desc;
 SELECT COUNT(*) FROM staging.stg_campaign_descriptions;
 
-SELECT COUNT(*) FROM public.coupon_redempt;
+SELECT COUNT(*) FROM staging.coupon_redempt;
 SELECT COUNT(*) FROM staging.stg_coupon_redemptions;
 ```
 

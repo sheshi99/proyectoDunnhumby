@@ -3,7 +3,7 @@
 -- Las conversiones fallan ante tipos incompatibles; no se descartan registros.
 BEGIN;
 CREATE SCHEMA IF NOT EXISTS staging;
--- Primero ejecutar completo Configuraciones/esquema_roles_permisos.sql.
+-- Primero ejecutar completo Configuraciones/staging_roles_permisos.sql.
 -- No se crean roles ni se asigna un usuario fijo desde este script.
 DO $$
 DECLARE

@@ -155,7 +155,7 @@ models:
 - name: stg_transaction_data
   description: Vista de staging administrada por dbt; conserva los valores originales.
   columns:
-  - name: household_key
+  - name: household_id
     data_type: integer
     description: 'Columna fuente: household_key.'
   - name: basket_id
