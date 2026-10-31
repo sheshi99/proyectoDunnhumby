@@ -9,7 +9,7 @@ models:
       Las relaciones se comprueban con dbt test y restricciones FOREIGN KEY físicas.
     columns:
       - name: sale_detail_id
-        description: Clave IDENTITY de la línea; puede cambiar al reconstruir.
+        description: Clave IDENTITY del warehouse; conserva las filas iguales y las correcciones reconocibles por sus campos originales.
         tests: [unique, not_null]
       - name: product_id
         tests:
