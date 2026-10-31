@@ -61,11 +61,14 @@ models:
   description: >-
     Combinaciones de contexto observadas en ventas. No atribuye UPC ni campana
     individual a una transaccion. Los indicadores de cupones expresan disponibilidad
-    por producto y vigencia, no recepcion individual ni uso demostrado. Al reconstruir
-    la tabla pueden cambiar los identity; coordinar la recarga futura de fact_sales.
+    por producto y vigencia, no recepcion individual ni uso demostrado. Los IDs
+    existentes se conservan; solo las combinaciones nuevas reciben otra identidad.
   columns:
   - name: promotional_context_id
     description: Clave primaria bigint calculada al construir la tabla; IDENTITY para futuras inserciones.
+  - name: context_key
+    description: Arreglo JSONB de todos los atributos; clave estable que incluye los nulos.
+    tests: [unique, not_null]
   - name: has_promotion
     description: >-
       Evidencia de exhibicion o anuncio segun listas de codigos reconocidos.
