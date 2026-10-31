@@ -2,7 +2,7 @@ version: 2
 sources:
 - name: dunnhumby
   schema: staging
-  description: Tablas originales cargadas en staging; conservan los nombres de columnas
+  description: Copias físicas en staging; conservan los nombres de columnas
     del CSV.
   tables:
   - name: campaign_desc
@@ -144,7 +144,7 @@ sources:
 
 - name: dunnhumby_raw
   schema: staging
-  description: Tablas originales cargadas desde los CSV.
+  description: Copias físicas en staging; las vistas preparan estas copias para el warehouse.
   tables:
   - name: campaign_table
   - name: causal_data
