@@ -1,32 +1,21 @@
 -- Materialización de la tabla de hechos de ventas
 -- El target warehouse materializa en Data_warehouse.public
 -- otorga permisos de selección al rol rol_data_warehouse.
--- Coloca sale_detail_id primero y activa su identidad al finalizar la carga.
+-- Conserva sale_detail_id e inserta nuevas líneas mediante su IDENTITY existente.
 -- Asegura que la columna promotional_context_id no sea nula.
--- Agrega claves foráneas hacia las cuatro dimensiones.
+-- Conserva las claves foráneas existentes hacia las cuatro dimensiones.
 -- Dependencias: dim_product, dim_household, dim_time,
 -- dim_promotional_context
 
-{{ config(
-    materialized='table',
-    schema='public' if target.name == 'warehouse' else 'data_warehouse',
-    grants={'select': ['rol_data_warehouse']},
-    post_hook=[
-        "{{ initialize_identity(this, 'sale_detail_id') }}",
-        'alter table {{ this }} add primary key (sale_detail_id)',
-        'alter table {{ this }} alter column promotional_context_id set not null',
-        "alter table {{ this }} add constraint fk_sales_product foreign key (product_id) references {{ ref('dim_product') }} (product_id)",
-        "alter table {{ this }} add constraint fk_sales_household foreign key (household_id) references {{ ref('dim_household') }} (household_id)",
-        "alter table {{ this }} add constraint fk_sales_time foreign key (time_id) references {{ ref('dim_time') }} (time_id)",
-        "alter table {{ this }} add constraint fk_sales_promotional_context foreign key (promotional_context_id) references {{ ref('dim_promotional_context') }} (promotional_context_id)"
-    ]
-) }}
+-- depends_on: {{ ref('dim_product') }}
+-- depends_on: {{ ref('dim_household') }}
+-- depends_on: {{ ref('dim_time') }}
+{{ config(materialized='cambios', identity_column='sale_detail_id', schema='public' if target.name == 'warehouse') }}
 
 -- Una fila por línea original, sin DISTINCT ni agregación de ventas.
 -- El arreglo JSONB compara los siete atributos, incluidos NULL, con igualdad
 -- compatible con hash join. No se guarda este arreglo en la tabla de hechos.
 select
-    row_number() over () as sale_detail_id,
     sales.product_id as product_id,
     sales.household_id as household_id,
     sales.transaction_day as time_id,
