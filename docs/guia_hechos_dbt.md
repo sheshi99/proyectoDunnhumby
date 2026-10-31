@@ -106,9 +106,9 @@ tiempo se usa el día de la transacción. No necesita unir esas tres dimensiones
 para obtener sus IDs.
 
 La materialización `cambios` compara ese resultado con `fact_sales` y aplica
-solo las diferencias. La tabla, su clave primaria, la identidad de
-`sale_detail_id` y las claves foráneas se crearon antes con
-[star_schema.sql](../scripts/sql/data_warehouse/star_schema.sql).
+solo las diferencias. En la primera ejecución crea la tabla con la identidad
+`sale_detail_id` como clave primaria, `promotional_context_id` obligatorio y las
+claves foráneas declaradas en `foreign_keys`.
 
 ## 3. Relaciones con las dimensiones
 

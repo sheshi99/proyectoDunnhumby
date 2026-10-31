@@ -59,19 +59,25 @@ hogar tampoco identifica por sí solo el producto comprado.
 
 ## 2. Configuración de los modelos
 
-Las tablas del warehouse no las crea dbt: se crean una sola vez con
-[star_schema.sql](../scripts/sql/data_warehouse/star_schema.sql), que define las
-columnas, claves primarias, identidades y claves foráneas. Los permisos de lectura
-vienen de los permisos predeterminados de `warehouse_roles_permisos.sql`.
+Todas las tablas del warehouse las crea y actualiza dbt con la materialización
+propia `cambios` ([incremental_sync.sql](../macros/incremental_sync.sql)):
 
-Los modelos solo mantienen esas tablas actualizadas. Por ejemplo,
+- **Primera ejecución:** si la tabla no existe, la crea con las columnas y tipos
+  del `SELECT`, agrega sus restricciones y la carga completa.
+- **Siguientes ejecuciones:** compara el `SELECT` con la tabla y aplica solo
+  inserciones, actualizaciones y eliminaciones, sin reemplazar la tabla.
+
+Los permisos de lectura vienen de los permisos predeterminados de
+`warehouse_roles_permisos.sql`. Por ejemplo,
 [dim_product.sql](../models/dimensions/dim_product.sql):
 
 | Parte del modelo | Para qué sirve |
 | --- | --- |
-| `materialized='cambios'` | Materialización propia del proyecto ([incremental_sync.sql](../macros/incremental_sync.sql)). Compara el resultado del `SELECT` con la tabla existente y aplica solo inserciones, actualizaciones y eliminaciones. Si la tabla no existe, falla. |
-| `unique_key` | Columna con la que se reconoce cada fila al comparar: `product_id`, `household_id`, `time_id` o `context_key`. |
-| `identity_column` | En `dim_promotional_context`, el ID generado por la tabla; se conserva para cada `context_key`. |
+| `materialized='cambios'` | Crea la tabla si no existe y después la actualiza por diferencias. |
+| `unique_key` | Columna con la que se reconoce cada fila al comparar: `product_id`, `household_id`, `time_id` o `context_key`. Es la clave primaria, salvo que haya `identity_column`. |
+| `identity_column` | ID generado por la tabla y clave primaria: `promotional_context_id` y `sale_detail_id`. Se conserva en las actualizaciones. |
+| `not_null_columns`, `unique_columns` | Restricciones adicionales al crear la tabla; por ejemplo, `dataset_day_number` en `dim_time`. |
+| `foreign_keys` | En `fact_sales`, la dimensión a la que apunta cada columna. |
 | `schema='public' if target.name == 'warehouse'` | Con la conexión `warehouse`, las tablas están en `public`. |
 | `SELECT` | Elige las columnas, sus nombres y sus tipos. `::bigint`, por ejemplo, convierte a entero grande. |
 | `staging_view('stg_product')` | Lee la vista limpia de la primera base. |
@@ -91,24 +97,21 @@ consulta de lectura y usa `ref()` para registrar la dependencia entre modelos.
 Requiere los pasos 1 a 8 del [README](../README.md) completos: vistas de staging,
 conexiones, `dblink` y permisos.
 
-1. **Solo en una instalación nueva**, crear las tablas vacías. Con Query Tool
-   conectado a **`Data_warehouse`**, ejecutar completo
-   [star_schema.sql](../scripts/sql/data_warehouse/star_schema.sql).
-   No ejecutarlo de nuevo si las tablas ya existen.
+Crear y cargar las dimensiones y la tabla de hechos y ejecutar sus pruebas:
 
-2. Cargar las dimensiones y la tabla de hechos y ejecutar sus pruebas:
+```powershell
+python -m dotenv -f .env run -- dbt build `
+    --profiles-dir . `
+    --target warehouse `
+    --select path:models/dimensions path:models/facts
+```
 
-   ```powershell
-   python -m dotenv -f .env run -- dbt build `
-       --profiles-dir . `
-       --target warehouse `
-       --select path:models/dimensions path:models/facts
-   ```
+`--target warehouse` elige la conexión a `Data_warehouse`, `--select` elige las
+carpetas de modelos y `dbt build` crea o actualiza las tablas y ejecuta sus pruebas.
+dbt crea primero las dimensiones y después `fact_sales`, porque sus claves
+foráneas apuntan a ellas.
 
-   `--target warehouse` elige la conexión a `Data_warehouse`, `--select` elige
-   las carpetas de modelos y `dbt build` carga las tablas y ejecuta sus pruebas.
-
-La primera ejecución inserta todos los datos y puede tardar varios minutos. Las
+La primera ejecución crea las tablas, inserta todos los datos y puede tardar varios minutos. Las
 siguientes solo aplican diferencias; normalmente las hace el
 [job automático](job_etl.md). `--full-refresh` está deshabilitado para no perder
 los IDs.
