@@ -129,6 +129,47 @@ cantidad = 0 y venta positiva
 cantidad positiva y venta = 0
 ```
 
+## 1.4. Campañas, cupones y redenciones
+
+Las vistas [stg_campaign_descriptions.sql](../models/staging/stg_campaign_descriptions.sql),
+[stg_campaign_table.sql](../models/staging/stg_campaign_table.sql),
+[stg_coupon.sql](../models/staging/stg_coupon.sql) y
+[stg_coupon_redemptions.sql](../models/staging/stg_coupon_redemptions.sql)
+prepararon estas tablas de la siguiente manera:
+
+- Se convirtieron los identificadores al tipo requerido.
+- Se estandarizaron los nombres de las columnas.
+- Se conservaron todas las asignaciones y redenciones.
+- No se sustituyó un identificador faltante por otro valor, porque las revisiones
+  de calidad indicaron que las claves principales no presentan nulos.
+
+En `stg_campaign_descriptions` se aplica `trim` a `DESCRIPTION` para eliminar los
+espacios externos del tipo de campaña.
+
+```sql
+trim("DESCRIPTION") as campaign_type
+```
+
+Esta limpieza conserva el texto original como `TypeA`, `TypeB`, entre otras
+categorías, pero elimina espacios que pudieran dificultar su comparación.
+
+En `stg_coupon` se utiliza `select distinct` para eliminar filas completamente
+duplicadas y mantener una sola asociación entre cupón, producto y campaña cuando
+la fuente repite la misma relación.
+
+Las tablas de campañas, cupones y redenciones no transformaron valores `NULL`
+adicionales, porque no se encontraron nulos que requirieran sustitución.
+
+## 1.5. Datos causales
+
+La vista [stg_causal_data.sql](../models/staging/stg_causal_data.sql) conserva
+los códigos originales `display` y `mailer`.
+
+Las revisiones de calidad encontraron que estas columnas no contienen valores
+vacíos ni nulos que deban sustituirse en staging. Por esta razón, se decidió
+preservar los códigos existentes y que la vista intermedia interprete su
+significado promocional.
+
 # 2. Trabajo realizado en la vista intermedia
 
 La vista [int_sales_promotional_context.sql](../models/intermediate/int_sales_promotional_context.sql)
