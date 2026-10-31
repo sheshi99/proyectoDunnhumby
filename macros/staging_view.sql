@@ -25,7 +25,8 @@
     {% if result | length != 1 or result.rows[0][0] is none %}
         {{ exceptions.raise_compiler_error('No se encontraron columnas para ' ~ remote_relation) }}
     {% endif %}
-    {{ return("public.dblink('dunnhumby_etl_server', 'select * from "
-        ~ remote_relation ~ "') as " ~ adapter.quote(alias)
+    {% set query = 'select * from ' ~ remote_relation %}
+    {{ return("public.dblink('dunnhumby_etl_server', '"
+        ~ query|replace("'", "''") ~ "') as " ~ adapter.quote(alias)
         ~ '(' ~ result.rows[0][0] ~ ')') }}
 {% endmacro %}
