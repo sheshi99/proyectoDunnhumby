@@ -1,13 +1,19 @@
-{# Actualiza en el sitio: nunca reemplaza tablas ni reasigna identidades. #}
+{# Actualiza en el sitio: nunca reemplaza tablas ni reasigna identidades.
+   En la primera ejecución crea la tabla vacía con sus restricciones y luego la carga. #}
 {% materialization cambios, adapter='postgres' %}
   {% if target.name != 'warehouse' %}{{ exceptions.raise_compiler_error('Las tablas incrementales requieren target warehouse') }}{% endif %}
+  {% if flags.FULL_REFRESH %}{{ exceptions.raise_compiler_error('Full refresh deshabilitado para conservar datos e IDs') }}{% endif %}
   {% set relation = this.incorporate(type='table') %}
   {% set existing = adapter.get_relation(database=this.database, schema=this.schema, identifier=this.identifier) %}
-  {% if existing is none or existing.type != 'table' %}
-    {{ exceptions.raise_compiler_error('Se requiere la tabla inicial existente: ' ~ this) }}
-  {% endif %}
-  {% if flags.FULL_REFRESH %}{{ exceptions.raise_compiler_error('Full refresh deshabilitado para conservar datos e IDs') }}{% endif %}
   {% set identity = config.get('identity_column') %}
+  {% if existing is none %}
+    {% call statement('crear', auto_begin=True) %}
+      {{ crear_tabla(relation, sql, identity, config.get('unique_key'),
+          config.get('not_null_columns', []), config.get('unique_columns', []), config.get('foreign_keys', {})) }}
+    {% endcall %}
+  {% elif existing.type != 'table' %}
+    {{ exceptions.raise_compiler_error('Ya existe un objeto que no es tabla: ' ~ this) }}
+  {% endif %}
   {% set cols = adapter.get_columns_in_relation(relation) %}
   {% if this.identifier == 'fact_sales' %}
     {% call statement('main', auto_begin=True) %}
@@ -35,6 +41,36 @@
   {% do adapter.commit() %}
   {{ return({'relations': [relation]}) }}
 {% endmaterialization %}
+
+{# Crea la tabla con las columnas y tipos del modelo, sin filas. La identidad va
+   primero; la clave primaria es la identidad o, si no hay, unique_key. Las claves
+   foráneas apuntan a la columna del mismo nombre en la dimensión indicada. #}
+{% macro crear_tabla(relation, query, identity, key, not_null_columns, unique_columns, foreign_keys) %}
+  create table {{ relation }} as
+  select {% if identity %}null::bigint as {{ adapter.quote(identity) }}, {% endif %}s.*
+  from (
+    {{ query }}
+  ) s with no data;
+  {% if identity %}
+  alter table {{ relation }} alter column {{ adapter.quote(identity) }} set not null;
+  alter table {{ relation }} alter column {{ adapter.quote(identity) }} add generated always as identity;
+  {% endif %}
+  alter table {{ relation }} add primary key ({{ adapter.quote(identity or key) }});
+  {% if identity and key %}
+  alter table {{ relation }} alter column {{ adapter.quote(key) }} set not null;
+  alter table {{ relation }} add unique ({{ adapter.quote(key) }});
+  {% endif %}
+  {% for col in not_null_columns %}
+  alter table {{ relation }} alter column {{ adapter.quote(col) }} set not null;
+  {% endfor %}
+  {% for col in unique_columns %}
+  alter table {{ relation }} add unique ({{ adapter.quote(col) }});
+  {% endfor %}
+  {% for col, dimension in foreign_keys.items() %}
+  alter table {{ relation }} add foreign key ({{ adapter.quote(col) }})
+    references {{ relation.incorporate(path={'identifier': dimension}) }} ({{ adapter.quote(col) }});
+  {% endfor %}
+{% endmacro %}
 
 {# Compara multiconjuntos: conserva coincidencias exactas antes de emparejar
    correcciones con los campos originales. Ningun dato de trabajo se persiste. #}
