@@ -1,8 +1,10 @@
 # Cómo se crea la tabla de hechos con dbt
 
 `fact_sales` guarda las ventas y las relaciona con las cuatro dimensiones.
-El modelo que la crea es [fact_sales.sql](../models/facts/fact_sales.sql).
-La tabla resultante queda en **`Data_warehouse.public.fact_sales`**.
+El modelo que la carga es [fact_sales.sql](../models/facts/fact_sales.sql) y la
+tabla está en **`Data_warehouse.public.fact_sales`**. Se carga junto con las
+dimensiones, con el comando de la
+[guía de dimensiones](guia_dimensiones_dbt.md#3-ejecución).
 
 Las medidas y dimensiones permiten elaborar consultas de gerencia, ventas,
 marketing, promociones y análisis comercial.
@@ -51,7 +53,7 @@ La construcción utiliza los siguientes objetos, cada uno con una responsabilida
 | `stg_transaction_data` | Vista en `dunnhumby_etl.staging`. | Prepara los nombres y tipos de los datos originales de las transacciones. |
 | `int_sales_promotional_context` | Vista en `dunnhumby_etl.staging`. | Conserva las líneas de transacción y agrega información promocional obtenida de las demás vistas limpias. |
 | Las cuatro dimensiones | Tablas en `Data_warehouse.public`. | Describen los productos, hogares, días y contextos promocionales de las ventas. |
-| `fact_sales.sql` | Archivo en `models/facts/`. | Define la consulta y las restricciones con las que dbt construye la tabla de hechos. |
+| `fact_sales.sql` | Archivo en `models/facts/`. | Define la consulta con la que dbt actualiza la tabla de hechos. |
 | `fact_sales` | Tabla en `Data_warehouse.public`. | Almacena el resultado: las líneas de venta con sus medidas e identificadores. |
 
 ### Paso 1. Preparar las ventas en staging
@@ -96,19 +98,17 @@ Esto no las convierte en una sola venta: cada línea conserva sus propias medida
 Si alguna venta no encuentra contexto, el `LEFT JOIN` conserva esa línea, pero
 la restricción `NOT NULL` de `promotional_context_id` impide completar la carga.
 
-### Paso 4. Seleccionar las columnas y crear la tabla
+### Paso 4. Seleccionar las columnas y actualizar la tabla
 
-El `SELECT` conserva las medidas y los identificadores de origen, cambia algunos
-nombres de columnas y calcula `sale_detail_id`. Para producto y hogar se
-conservan los IDs originales; para tiempo se utiliza el día de la transacción.
-El `SELECT` no necesita unir esas tres dimensiones para recuperar sus IDs.
+El `SELECT` conserva las medidas y los identificadores de origen y cambia algunos
+nombres de columnas. Para producto y hogar se conservan los IDs originales; para
+tiempo se usa el día de la transacción. No necesita unir esas tres dimensiones
+para obtener sus IDs.
 
-La configuración `materialized='table'` indica a dbt que guarde el resultado
-como tabla. Después, los `post_hook` agregan la clave primaria, configuran la
-identidad y establecen las claves foráneas hacia las cuatro dimensiones.
-
-El resultado es `Data_warehouse.public.fact_sales`. Su construcción se realiza
-desde el modelo dbt; no requiere un script de copia de tablas.
+La materialización `cambios` compara ese resultado con `fact_sales` y aplica
+solo las diferencias. La tabla, su clave primaria, la identidad de
+`sale_detail_id` y las claves foráneas se crearon antes con
+[star_schema.sql](../scripts/sql/data_warehouse/star_schema.sql).
 
 ## 3. Relaciones con las dimensiones
 
@@ -130,8 +130,8 @@ existir en `dim_product`; la restricción evita guardar una referencia a un
 producto ausente de esa dimensión.
 
 Los `ref()` a las dimensiones registran las dependencias para que dbt construya
-las tablas en el orden necesario. En este modelo aparecen en las instrucciones
-que agregan las claves foráneas y en la consulta al contexto promocional.
+las tablas en el orden necesario. En este modelo aparecen en los comentarios
+`depends_on` del inicio y en la consulta al contexto promocional.
 
 `store_id` se conserva como dato de la venta. Actualmente no tiene una dimensión
 de tienda relacionada.
@@ -153,44 +153,14 @@ de tienda relacionada.
 El modelo conserva los importes y los signos preparados en staging. No convierte
 los descuentos negativos a positivos ni aplica una escala fija de decimales.
 
-`sale_detail_id` se calcula inicialmente con `row_number()`. Después, la macro
-`initialize_identity` configura `IDENTITY` y ajusta la secuencia para futuras
-inserciones. Una reconstrucción puede asignar otros IDs a las mismas líneas.
+`sale_detail_id` lo genera la tabla (`IDENTITY`) al insertar cada línea y se
+conserva en las actualizaciones. La [guía del job](job_etl.md#cómo-se-conservan-los-ids)
+explica cuándo una línea conserva su ID y cuándo se inserta como nueva.
 
-## 5. Ejecución del modelo
+## 5. Validación de resultados
 
-Primero deben existir las vistas de la primera base, las conexiones y los permisos.
-La [guía de dimensiones](guia_dimensiones_dbt.md#4-ejecución-del-flujo)
-explica esa preparación y sus comandos.
-
-Ejecutar desde PowerShell, en la raíz del proyecto:
-
-```powershell
-python -m dotenv -f .env run -- dbt build `
-    --profiles-dir . `
-    --target warehouse `
-    --select path:models/dimensions path:models/facts
-```
-
-Es un solo comando dividido en varias líneas para facilitar su lectura. En
-PowerShell, el acento grave al final de cada línea indica que continúa en la
-siguiente; no debe tener espacios después. Se puede copiar el bloque completo.
-
-`--target warehouse` selecciona la conexión a la segunda base. `--select` incluye
-los modelos de dimensiones y hechos, y `dbt build` construye las tablas y ejecuta
-sus pruebas. El prefijo con `dotenv` carga las variables del archivo `.env`.
-
-Este comando reconstruye las cuatro dimensiones y hechos, y ejecuta las pruebas
-asociadas. Es la misma ejecución completa documentada en la guía de dimensiones;
-se realiza una vez por actualización del modelo estrella.
-
-La carga es completa: dbt vuelve a construir las tablas con las consultas de
-los modelos. No agrega solamente las ventas nuevas. Se reconstruyen juntas
-porque los IDs del contexto promocional pueden cambiar.
-
-## 6. Validación de resultados
-
-Para ejecutar las pruebas sin reconstruir las tablas:
+Esta validación corresponde al paso 10 del [README](../README.md). Para ejecutar
+las pruebas sin modificar las tablas:
 
 ```powershell
 python -m dotenv -f .env run -- dbt test `

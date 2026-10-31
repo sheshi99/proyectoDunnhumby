@@ -1,27 +1,29 @@
 # Inicialización de dbt con PostgreSQL
 
-## 1. Instalar dbt
+Esta guía cubre los pasos 6 y 7 del [README](../README.md): configurar las
+conexiones de dbt y la lectura entre las dos bases. Requiere el entorno virtual
+activo y las dependencias de `requirements-dbt.txt` instaladas
+([preparación del entorno](instrucciones_de_carga.md)).
 
-Con PostgreSQL iniciado y el entorno virtual `venv` activo, ejecuta los
-comandos en la terminal PowerShell de VS Code:
+## 1. Comprobar dbt
 
 ```powershell
-cd C:\Proyecto_Mineria\proyectoDunnhumby
-python -m pip install -r requirements-dbt.txt
 dbt --version
 ```
 
+Debe mostrar dbt Core y el adaptador `postgres`.
+
 ## 2. Crear `.env`
 
-Crea `.env` junto a `dbt_project.yml` desde la plantilla del repositorio:
+Crear `.env` junto a `dbt_project.yml` desde la plantilla. Si ya existe, revisar
+sus valores sin sobrescribirlo.
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Si `.env` ya existe, revisar sus valores sin sobrescribir las credenciales locales.
 Completar `DBT_PG_USER` y `DBT_ENV_SECRET_PG_PASSWORD`, y ajustar host y puerto
-si la configuración local es distinta. La plantilla contiene estos campos:
+si la configuración local es distinta:
 
 ```dotenv
 DBT_PG_HOST=localhost
@@ -36,31 +38,32 @@ DBT_THREADS=4
 DBT_PG_CONNECT_TIMEOUT=10
 ```
 
-Escribe tu contraseña de PostgreSQL
-entre las comillas simples; si contiene una comilla simple, escápala con `\'`.
+La contraseña va entre comillas simples; si contiene una comilla simple,
+escribirla como `\'`.
 
-`.env.example` se comparte en Git sin credenciales reales. Cada integrante
-mantiene su `.env` local, que está excluido por `.gitignore`. Las variables de
-conexión se utilizan tanto para dbt como para configurar `dblink` con
-`conexion_warehouse.sql`; la base destino `Data_warehouse` está definida en el
-target `warehouse` de la plantilla del perfil.
+Estas variables se usan en dbt, en la configuración de `dblink` (sección 5) y
+en el job de pgAgent. Cada integrante mantiene su `.env` local; está excluido de
+Git y no se comparte.
 
 ## 3. Crear `profiles.yml`
 
-Crea `profiles.yml` junto a `dbt_project.yml` desde la plantilla del proyecto:
+Crear `profiles.yml` junto a `dbt_project.yml` desde la plantilla. Si ya existe,
+revisar sus conexiones sin sobrescribirlo.
 
 ```powershell
 Copy-Item profiles.example.yml profiles.yml
 ```
 
-Si el perfil local ya existe, revisar sus conexiones sin sobrescribirlo.
-La plantilla incluye `dev`, que apunta a `dunnhumby_etl.staging`, y `warehouse`,
-que apunta a `Data_warehouse.public`. Ambas bases deben existir antes de comprobar
-las conexiones. `.env` y `profiles.yml` están excluidos de Git.
+El perfil tiene dos conexiones (targets):
 
-## 4. Validar la conexión
+| Target | Destino | Uso |
+| --- | --- | --- |
+| `dev` | `dunnhumby_etl.staging` | Vistas limpias y contexto promocional. |
+| `warehouse` | `Data_warehouse.public` | Dimensiones y hechos. |
 
-Desde la carpeta del proyecto y con el entorno virtual activo, ejecuta:
+`profiles.yml` también está excluido de Git.
+
+## 4. Validar las conexiones
 
 ```powershell
 python -m dotenv -f .env run -- dbt debug --profiles-dir . --target dev
@@ -68,29 +71,46 @@ python -m dotenv -f .env run -- dbt debug --profiles-dir . --target dev
 python -m dotenv -f .env run -- dbt debug --profiles-dir . --target warehouse
 ```
 
-Comprueba que la salida de cada conexión incluya:
+`python -m dotenv -f .env run --` carga las variables de `.env` antes de ejecutar
+dbt. Cada conexión debe terminar con:
 
 ```text
-profiles.yml file [OK found and valid]
-dbt_project.yml file [OK found and valid]
 Connection test: [OK connection ok]
 All checks passed!
 ```
 
-Guarda la salida o una captura, la fecha y la versión de dbt como evidencia
-en Jira.
+## 5. Configurar la lectura entre las dos bases
 
-## 5. Volver a trabajar en otra sesión
+Los modelos del warehouse leen las vistas de `dunnhumby_etl.staging` mediante
+`dblink`. [conexion_warehouse.sql](../scripts/sql/Configuraciones/conexion_warehouse.sql)
+configura la extensión y el servidor de conexión. Se ejecuta con `psql`, no con
+pgAdmin, porque lee las variables de `.env`.
 
-Activa el entorno virtual, entra a la carpeta del proyecto y ejecuta:
+Sustituir `USUARIO_DBT` por el valor de `DBT_PG_USER`, y ajustar host y puerto
+si no son `localhost:5432`:
 
 ```powershell
-python -m dotenv -f .env run -- dbt debug --profiles-dir . --target dev
-
-python -m dotenv -f .env run -- dbt debug --profiles-dir . --target warehouse
+python -m dotenv -f .env run -- psql `
+    --host=localhost `
+    --port=5432 `
+    --username=USUARIO_DBT `
+    --dbname=Data_warehouse `
+    --password `
+    --file=scripts/sql/Configuraciones/conexion_warehouse.sql
 ```
 
-La contraseña se carga desde el `.env` guardado.
+Ingresar la contraseña cuando `psql` la solicite. Este paso solo configura el
+acceso; las tablas se crean después.
 
-La configuración de lectura entre bases con `dblink` es un paso adicional,
-documentado en el [flujo del README](../README.md#7-configurar-la-lectura-entre-las-dos-bases).
+## Al volver a trabajar
+
+Abrir PowerShell en la raíz del proyecto y activar el entorno:
+
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+Las credenciales se cargan desde `.env` en cada comando; no hace falta
+configurarlas de nuevo.
+
+Siguiente paso: [crear las vistas limpias](capa_staging.md#2-crear-las-vistas-limpias).
