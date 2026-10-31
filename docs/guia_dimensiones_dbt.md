@@ -1,19 +1,11 @@
 # Cómo se crean las dimensiones con dbt
 
-Las dimensiones son tablas que describen los productos, hogares, campañas,
-días y condiciones promocionales de las ventas. Esta guía explica de dónde
-salen y cómo se crean en la base de datos Data_warehouse.
+Las dimensiones describen los productos, hogares, días y condiciones
+promocionales de las ventas. Esta guía explica de dónde salen, cómo están
+configurados sus modelos y cómo se cargan en `Data_warehouse` (paso 9 del
+[README](../README.md)).
 
-## 1. Ubicación de los datos
-
-| Base de datos | Esquema | Contenido |
-| --- | --- | --- |
-| `dunnhumby_etl` | `public` | Las ocho tablas originales. |
-| `dunnhumby_etl` | `staging` | Las copias de trabajo, las vistas limpias `stg_` y la vista intermediaria `int_sales_promotional_context`. |
-| `Data_warehouse` | `public` | Las cuatro dimensiones y `fact_sales`. |
-
-
-## 2. Dimensiones y fuentes de datos
+## 1. Dimensiones y fuentes de datos
 
 El modelo contiene cuatro dimensiones. Las campañas permanecen como fuentes en
 staging para calcular los indicadores de contexto promocional. Gerencia, ventas,
@@ -65,82 +57,66 @@ se conservan por separado en `fact_sales`.
 Tener un cupón disponible no demuestra que se usó en esa compra. Un canje del
 hogar tampoco identifica por sí solo el producto comprado.
 
-## 3. Configuración de los modelos
+## 2. Configuración de los modelos
 
-El modelo [dim_product.sql](../models/dimensions/dim_product.sql) contiene
-la configuración y la consulta que dbt utiliza para crear la tabla de productos.
+Las tablas del warehouse no las crea dbt: se crean una sola vez con
+[star_schema.sql](../scripts/sql/data_warehouse/star_schema.sql), que define las
+columnas, claves primarias, identidades y claves foráneas. Los permisos de lectura
+vienen de los permisos predeterminados de `warehouse_roles_permisos.sql`.
+
+Los modelos solo mantienen esas tablas actualizadas. Por ejemplo,
+[dim_product.sql](../models/dimensions/dim_product.sql):
 
 | Parte del modelo | Para qué sirve |
 | --- | --- |
-| `materialized='table'` | dbt crea una tabla con el resultado del `SELECT`. |
-| `schema='public' if target.name == 'warehouse'` | Al usar la conexión `warehouse`, la tabla se crea en `public`. |
-| `grants={'select': ['rol_data_warehouse']}` | Concede al rol permiso para consultar la tabla. |
-| `post_hook` | Ejecuta instrucciones después de crear la tabla, por ejemplo agregar la clave primaria. |
-| `SELECT` | Elige las columnas, sus nombres y sus tipos. `::bigint`, por ejemplo, convierte un valor a entero grande. |
-| `staging_view('stg_product')` | Lee la vista limpia de la primera base de datos. |
+| `materialized='cambios'` | Materialización propia del proyecto ([incremental_sync.sql](../macros/incremental_sync.sql)). Compara el resultado del `SELECT` con la tabla existente y aplica solo inserciones, actualizaciones y eliminaciones. Si la tabla no existe, falla. |
+| `unique_key` | Columna con la que se reconoce cada fila al comparar: `product_id`, `household_id`, `time_id` o `context_key`. |
+| `identity_column` | En `dim_promotional_context`, el ID generado por la tabla; se conserva para cada `context_key`. |
+| `schema='public' if target.name == 'warehouse'` | Con la conexión `warehouse`, las tablas están en `public`. |
+| `SELECT` | Elige las columnas, sus nombres y sus tipos. `::bigint`, por ejemplo, convierte a entero grande. |
+| `staging_view('stg_product')` | Lee la vista limpia de la primera base. |
 
-`warehouse` es el nombre de la conexión en `profiles.yml`; esa conexión apunta
-a la base `Data_warehouse`. No es el nombre de un esquema.
+`warehouse` es el nombre de la conexión en `profiles.yml`, que apunta a la base
+`Data_warehouse`; no es un esquema.
 
 ### Acceso a las vistas de staging
 
 La macro [staging_view.sql](../macros/staging_view.sql) permite que los modelos
-ejecutados en `Data_warehouse` consulten las vistas de `dunnhumby_etl.staging`.
-Utiliza `dblink`, una función de PostgreSQL para consultar otra base de datos.
+ejecutados en `Data_warehouse` consulten las vistas de `dunnhumby_etl.staging`
+mediante `dblink`. Obtiene los nombres y tipos de las columnas, genera la
+consulta de lectura y usa `ref()` para registrar la dependencia entre modelos.
 
-Durante la ejecución, la macro obtiene los nombres y tipos de las columnas
-y genera la consulta de lectura de la vista de origen. Internamente utiliza
-`ref()` para registrar la dependencia entre los modelos en dbt.
+## 3. Ejecución
 
-Las dimensiones y la tabla de hechos se relacionan mediante `ref()`, que
-referencia sus tablas dentro de `Data_warehouse`. Las vistas de preparación
-permanecen en `dunnhumby_etl.staging`.
+Requiere los pasos 1 a 8 del [README](../README.md) completos: vistas de staging,
+conexiones, `dblink` y permisos.
 
-## 4. Ejecución del flujo
+1. **Solo en una instalación nueva**, crear las tablas vacías. Con Query Tool
+   conectado a **`Data_warehouse`**, ejecutar completo
+   [star_schema.sql](../scripts/sql/data_warehouse/star_schema.sql).
+   No ejecutarlo de nuevo si las tablas ya existen.
 
-Antes de ejecutar, las ocho tablas de trabajo deben existir en staging, y deben
-estar configuradas las conexiones y permisos. Los archivos correspondientes son:
+2. Cargar las dimensiones y la tabla de hechos y ejecutar sus pruebas:
 
-| Archivo | Dónde se utiliza |
-| --- | --- |
-| `staging_roles_permisos.sql` | En `dunnhumby_etl`, para los permisos de staging. |
-| `warehouse_roles_permisos.sql` | En `Data_warehouse`, para los permisos de consulta del warehouse. |
-| `conexion_warehouse.sql` | Con `psql` conectado a `Data_warehouse`, para configurar `dblink`. Lee variables del entorno; no se pega completo en pgAdmin. |
-| `profiles.yml` | En el proyecto, para las conexiones `dev` y `warehouse`. `profiles.example.yml` es la plantilla. |
+   ```powershell
+   python -m dotenv -f .env run -- dbt build `
+       --profiles-dir . `
+       --target warehouse `
+       --select path:models/dimensions path:models/facts
+   ```
 
-Los tres archivos SQL están en `scripts/sql/Configuraciones/`. El usuario que
-ejecuta dbt necesita además permisos para crear sus vistas y tablas.
+   `--target warehouse` elige la conexión a `Data_warehouse`, `--select` elige
+   las carpetas de modelos y `dbt build` carga las tablas y ejecuta sus pruebas.
 
-Ejecutar los comandos en PowerShell desde la raíz del proyecto, donde están
-`.env` y `dbt_project.yml`, con el Python que tiene instaladas las dependencias
-de `requirements-dbt.txt`. Cada paso debe terminar correctamente antes de iniciar
-el siguiente.
+La primera ejecución inserta todos los datos y puede tardar varios minutos. Las
+siguientes solo aplican diferencias; normalmente las hace el
+[job automático](job_etl.md). `--full-refresh` está deshabilitado para no perder
+los IDs.
 
-**Paso 1: crear las vistas limpias y la vista intermedia en la base de datos Dunnhumby_etl.**
+Con `warehouse`, usar siempre esta selección. Un `dbt run` sin selección, o un
+`+` delante de un modelo, incluiría las vistas que deben crearse en la primera base.
 
-```powershell
-python -m dotenv -f .env run -- dbt run --profiles-dir . --target dev --select path:models/staging path:models/intermediate
-```
-
-**Paso 2: crear las dimensiones y hechos en la base de datos Data_warehouse, y ejecutar sus pruebas.**
-
-```powershell
-python -m dotenv -f .env run -- dbt build --profiles-dir . --target warehouse --select path:models/dimensions path:models/facts
-```
-
-El segundo comando incluye hechos porque, al reconstruir el contexto promocional,
-sus IDs pueden cambiar y `fact_sales` debe usar los IDs de la nueva dimensión.
-El comando puede tardar varios minutos.
-
-Para interpretar los comandos: `--target` elige la conexión, `--select` elige
-las carpetas de modelos y `--profiles-dir .` busca el perfil en la carpeta actual.
-`python -m dotenv -f .env run --` carga las variables del archivo `.env`.
-
-Con `warehouse`, utilizar la selección indicada. Un `dbt run` sin selección,
-o agregar `+` delante de un modelo, puede incluir también las vistas que deben
-construirse en la primera base.
-
-## 5. Verificación del resultado
+## 4. Verificación del resultado
 
 En pgAdmin, abrir Query Tool conectado a **`Data_warehouse`**:
 

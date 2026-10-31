@@ -1,8 +1,9 @@
 # Proyecto Dunnhumby
 
-Proyecto ETL con PostgreSQL y dbt. Los datos originales se conservan en una base
-de trabajo y los modelos dbt construyen las dimensiones y hechos en otra base.
-
+Proyecto ETL con PostgreSQL y dbt. Los datos originales del dataset Dunnhumby se
+conservan en una base de trabajo y los modelos dbt construyen un modelo estrella
+(cuatro dimensiones y una tabla de hechos) en otra base. Un job de pgAgent
+mantiene el warehouse actualizado cada dos horas.
 
 ## Organización de los datos
 
@@ -12,285 +13,116 @@ de trabajo y los modelos dbt construyen las dimensiones y hechos en otra base.
 | `dunnhumby_etl` | `staging` | Copias de trabajo, ocho vistas limpias `stg_` y la vista intermedia de contexto promocional. |
 | `Data_warehouse` | `public` | Cuatro dimensiones y la tabla de hechos `fact_sales`. |
 
-El proceso sigue este orden: carga original → copia a staging → vistas limpias
-→ dimensiones y hechos → validación.
-
-## Preparación inicial
-
-Los pasos siguientes se realizan para preparar una instalación del proyecto.
-Si una etapa ya está completa, comprobar su resultado y continuar con la siguiente.
-Los comandos de terminal se ejecutan en PowerShell desde la raíz del repositorio.
-Para reproducir la configuración, utilizar el mismo usuario PostgreSQL en el
-cargador, los scripts de permisos, `.env` y la conexión `psql`. Ese usuario debe
-tener permisos para crear las bases, roles, extensión y objetos del proyecto.
-
-### 1. Preparar el entorno y los archivos de datos
-
-Se necesita PostgreSQL activo, pgAdmin, `psql` disponible en la terminal y Python
-con soporte para crear un entorno virtual. Colocar los ocho CSV del dataset en
-`database/`; esos archivos no se incluyen en Git.
-
-Si todavía no existe un entorno virtual:
-
-```powershell
-python -m venv venv
+```text
+CSV → public → copias en staging → vistas stg_ → dimensiones y hechos → job cada dos horas
 ```
 
-Activar el entorno e instalar las dependencias:
+## Cómo usar esta guía
 
-```powershell
-.\venv\Scripts\Activate.ps1
+Para instalar el proyecto desde cero, seguir los pasos en orden. Cada paso
+resume qué se hace y qué resultado se espera, y enlaza a la guía con los
+comandos y el detalle. Si una etapa ya está completa en tu equipo, comprobar su
+resultado y pasar a la siguiente.
 
-python -m pip install -r requirements-dbt.txt
-python -m pip install pandas psycopg2-binary sqlalchemy
-```
+Antes de empezar:
 
-El primer grupo de dependencias corresponde a dbt; el segundo, al cargador de CSV.
+- Los comandos de terminal se ejecutan en PowerShell desde la raíz del repositorio.
+- Usar el mismo usuario de PostgreSQL en todos los pasos (carga, permisos, `.env`
+  y `psql`). Ese usuario debe poder crear bases, roles, extensiones y tablas.
+- Algunos comandos están divididos en varias líneas con el acento grave (`` ` ``)
+  de PowerShell. Se copia el bloque completo; no dejar espacios después de ese carácter.
+- Las consultas SQL se ejecutan en **pgAdmin → Query Tool**, conectado a la base
+  que indica cada guía.
 
-### 2. Crear las dos bases de datos
+## Instalación desde cero
 
-En pgAdmin, abrir Query Tool conectado a `postgres` con un usuario administrador.
-Ejecutar cada sentencia por separado, fuera de una transacción, solo si la base
-todavía no existe:
+### 1. Preparar el entorno y los CSV
 
-```sql
-CREATE DATABASE dunnhumby_etl;
-```
+Se necesitan PostgreSQL, pgAdmin, `psql` en la terminal y Python. Se crea el
+entorno virtual `venv`, se instalan las dependencias de dbt y del cargador, y se
+colocan los ocho CSV en `database/` (no están en Git).
 
-```sql
-CREATE DATABASE "Data_warehouse";
-```
+Guía: [Preparación de las bases y carga de datos](docs/instrucciones_de_carga.md), sección 1.
 
-Las comillas conservan el nombre exacto `Data_warehouse`, utilizado por la conexión
-de dbt. Al terminar, ambas bases deben aparecer en pgAdmin.
+### 2. Crear las bases y cargar los datos originales
 
-### 3. Cargar los originales y revisar su calidad
+Se crean las bases `dunnhumby_etl` y `Data_warehouse`, y el script
+`cargar_bd.py` carga los CSV en `dunnhumby_etl.public`.
+**La carga reemplaza las tablas de origen: no repetirla si ya están cargadas.**
 
-Revisar el usuario y los datos de conexión en [cargar_bd.py](scripts/cargar_bd.py).
-El cargador actual usa `postgres`, `localhost:5432` y `dunnhumby_etl`, y solicita
-la contraseña en la terminal.
+Guía: [Preparación de las bases y carga de datos](docs/instrucciones_de_carga.md), secciones 2 y 3.
 
-```powershell
-python scripts/cargar_bd.py
-```
+### 3. Revisar la calidad de los datos
 
-**La carga reemplaza las tablas de origen. Si los ocho CSV ya están cargados,
-no repetir este comando para continuar con el modelado.**
+Las consultas de `scripts/sql/RevisionCalidad/` muestran los problemas de cada
+tabla. Sus conclusiones justifican las transformaciones de las vistas limpias.
 
-Con Query Tool conectado a `dunnhumby_etl`, ejecutar las consultas de
-`scripts/sql/RevisionCalidad/` para inspeccionar las ocho tablas de `public`.
-La [guía de carga](docs/instrucciones_de_carga.md) detalla esta preparación.
+Guía: [Preparación de las bases y carga de datos](docs/instrucciones_de_carga.md), sección 4.
 
-### 4. Configurar los esquemas, roles y permisos
+### 4. Configurar roles y permisos
 
-Abrir cada archivo SQL en Query Tool, seleccionando la base indicada:
+Dos scripts crean los roles `rol_staging` y `rol_data_warehouse` con sus permisos,
+uno en cada base.
 
-| Base seleccionada | Archivo que se ejecuta completo |
-| --- | --- |
-| `dunnhumby_etl` | [staging_roles_permisos.sql](scripts/sql/Configuraciones/staging_roles_permisos.sql) |
-| `Data_warehouse` | [warehouse_roles_permisos.sql](scripts/sql/Configuraciones/warehouse_roles_permisos.sql) |
+Guía: [Preparación de las bases y carga de datos](docs/instrucciones_de_carga.md), sección 5.
 
-Usar el usuario que creará los objetos dbt, con los permisos administrativos
-necesarios para ejecutar estos scripts. Configuran los roles `rol_staging` y
-`rol_data_warehouse`, sus permisos y los permisos predeterminados para objetos
-futuros. Verificar que los resultados muestren la base, el esquema y el rol
-correspondientes; las comprobaciones de permisos del warehouse deben devolver `true`.
+### 5. Copiar las tablas originales a staging
 
-### 5. Copiar las ocho tablas a staging
+Se copian las ocho tablas de `public` a `staging`, donde trabaja dbt, y se
+validan los requisitos. `public` queda intacto.
 
-Con Query Tool conectado a **`dunnhumby_etl`**, ejecutar en este orden:
+Guía: [Capa staging](docs/capa_staging.md), sección 1.
 
-1. [copiar_tablas_a_staging.sql](scripts/sql/staging/copiar_tablas_a_staging.sql).
-2. [00_validar_requisitos.sql](scripts/sql/staging/00_validar_requisitos.sql).
+### 6. Configurar las conexiones de dbt
 
-La copia conserva nombres, tipos y registros. Si las tablas destino ya existen,
-el script se detiene sin sobrescribirlas. Si las ocho copias ya están completas,
-continuar con la validación de requisitos.
+Se crean los archivos locales `.env` y `profiles.yml` desde sus plantillas y se
+comprueban las dos conexiones: `dev` (staging) y `warehouse` (Data_warehouse).
+Las credenciales no se suben a Git.
 
-**Resultado esperado:** ocho tablas físicas en `dunnhumby_etl.staging`, disponibles
-para el usuario de dbt. Esta copia inicial no se actualiza automáticamente cuando
-cambia `public`. Ver la [guía de staging](docs/capa_staging.md).
-
-### 6. Configurar y comprobar las conexiones de dbt
-
-Crear los archivos locales desde las plantillas si todavía no existen:
-
-```powershell
-Copy-Item .env.example .env
-Copy-Item profiles.example.yml profiles.yml
-```
-
-Completar `DBT_PG_USER` y `DBT_ENV_SECRET_PG_PASSWORD` en `.env`, y revisar host y
-puerto según la [guía de inicialización](docs/inicializacion_dbt.md). El usuario
-debe poder trabajar con las dos bases. El cargador de CSV mantiene su propia
-configuración en `scripts/cargar_bd.py`.
-
-Si `.env` o `profiles.yml` ya existen, revisar su contenido sin sobrescribir la
-configuración local. El perfil debe incluir ambas conexiones:
-
-| Target de dbt | Destino |
-| --- | --- |
-| `dev` | `dunnhumby_etl.staging`, para preparar las vistas. |
-| `warehouse` | `Data_warehouse.public`, para construir dimensiones y hechos. |
-
-Comprobar cada conexión:
-
-```powershell
-python -m dotenv -f .env run -- dbt debug --profiles-dir . --target dev
-
-python -m dotenv -f .env run -- dbt debug --profiles-dir . --target warehouse
-```
-
-Ambas deben indicar `Connection test: ... connection ok`. `.env` y `profiles.yml`
-son archivos locales excluidos de Git; no se publican las credenciales.
-Las plantillas `.env.example` y `profiles.example.yml` sí se incluyen en Git
-para que cada integrante prepare su entorno sin compartir contraseñas.
+Guía: [Inicialización de dbt](docs/inicializacion_dbt.md), secciones 1 a 4.
 
 ### 7. Configurar la lectura entre las dos bases
 
-La conexión `warehouse` necesita consultar las vistas de la primera base.
-[conexion_warehouse.sql](scripts/sql/Configuraciones/conexion_warehouse.sql)
-configura `dblink` para ese acceso. Este archivo se ejecuta con **`psql`**, porque
-usa instrucciones para leer variables del entorno.
+`Data_warehouse` necesita leer las vistas de `dunnhumby_etl`. Se configura
+`dblink` con `psql` usando las variables de `.env`.
 
-En el siguiente comando, sustituir `USUARIO_DBT` por el usuario configurado en
-`DBT_PG_USER`. Ajustar host y puerto si no son `localhost:5432`:
+Guía: [Inicialización de dbt](docs/inicializacion_dbt.md), sección 5.
 
-```powershell
-python -m dotenv -f .env run -- psql `
-    --host=localhost `
-    --port=5432 `
-    --username=USUARIO_DBT `
-    --dbname=Data_warehouse `
-    --password `
-    --file=scripts/sql/Configuraciones/conexion_warehouse.sql
-```
+### 8. Crear las vistas limpias
 
-Ingresar la contraseña cuando la solicite `psql`. El usuario requiere permisos
-para configurar la extensión y el servidor de conexión. Este paso configura el
-acceso; las tablas finales se crean después con dbt.
+dbt crea en `staging` las ocho vistas `stg_` y la vista
+`int_sales_promotional_context`, y ejecuta sus pruebas.
 
-Los comandos divididos en líneas usan el acento grave de PowerShell al final de
-cada línea que continúa. No colocar espacios después de ese carácter.
+Guía: [Capa staging](docs/capa_staging.md), sección 2. Para agregar o modificar
+una vista, ver el [instructivo de modelos de staging](docs/instructivo_dbt_ETL.md).
 
-## Construcción del modelo con dbt
+### 9. Crear y cargar el modelo estrella
 
-Con la preparación anterior completa, ejecutar estos pasos en orden. Cada comando
-debe terminar correctamente antes de iniciar el siguiente.
+Se crean las tablas vacías con `star_schema.sql` y dbt las carga con las
+dimensiones y la tabla de hechos, ejecutando sus pruebas.
 
-### 8. Crear las vistas limpias y el contexto promocional
+Guía: [Dimensiones](docs/guia_dimensiones_dbt.md), sección 3 (ejecución).
+El detalle de la tabla de ventas está en la [guía de hechos](docs/guia_hechos_dbt.md).
 
-```powershell
-python -m dotenv -f .env run -- dbt run `
-    --profiles-dir . `
-    --target dev `
-    --select path:models/staging path:models/intermediate
-```
+### 10. Validar el resultado
 
-**Resultado esperado:** ocho vistas `stg_` y la vista
-`int_sales_promotional_context` en `dunnhumby_etl.staging`.
+Se revisan las tablas creadas, una muestra de ventas y se compara el conteo de
+`fact_sales` con las transacciones de staging. Las pruebas no deben mostrar
+`FAIL` ni `ERROR`.
 
-Ejecutar las pruebas de las vistas:
+Guía: [Hechos](docs/guia_hechos_dbt.md), sección 5 (validación).
 
-```powershell
-python -m dotenv -f .env run -- dbt test `
-    --profiles-dir . `
-    --target dev `
-    --select path:models/staging
-```
+### 11. Activar la actualización automática
 
-Como comprobación adicional, ejecutar
-[03_validar_staging.sql](scripts/sql/staging/03_validar_staging.sql) en Query Tool
-de `dunnhumby_etl`. Ese script comprueba específicamente las vistas de transacciones
-y datos causales; no sustituye las pruebas de los demás modelos.
+El job **`Dunnhumby_ETL_cada_2_horas`** de pgAgent compara cada dos horas las
+copias de staging con el warehouse y aplica solo las diferencias. No modifica
+staging: los datos nuevos deben estar cargados antes ahí. En la instalación
+actual ya está activo.
 
-El [instructivo de modelos de staging](docs/instructivo_dbt_ETL.md) explica cómo
-agregar o modificar una vista de limpieza.
-
-### 9. Crear las dimensiones y la tabla de hechos
-
-```powershell
-python -m dotenv -f .env run -- dbt build `
-    --profiles-dir . `
-    --target warehouse `
-    --select path:models/dimensions path:models/facts
-```
-
-**Resultado esperado:** las siguientes tablas en `Data_warehouse.public`:
-
-- `dim_product`
-- `dim_household`
-- `dim_time`
-- `dim_promotional_context`
-- `fact_sales`
-
-`dbt build` crea las tablas y ejecuta sus pruebas. La carga es completa y puede
-tardar varios minutos. Se reconstruyen dimensiones y hechos juntos porque los
-IDs propios del contexto promocional pueden cambiar.
-
-Utilizar la selección indicada: ejecutar todos los modelos con `warehouse`, o usar
-`+` para incluir sus dependencias, puede crear vistas de preparación en el destino.
-
-Consultar la [guía de dimensiones](docs/guia_dimensiones_dbt.md) y la
-[guía de hechos](docs/guia_hechos_dbt.md) para entender las transformaciones,
-identificadores y relaciones.
-
-### 10. Revisar las tablas finales
-
-Con Query Tool conectado a **`Data_warehouse`**, ejecutar:
-
-```sql
-SELECT table_name
-FROM information_schema.tables
-WHERE table_schema = 'public'
-  AND table_type = 'BASE TABLE'
-ORDER BY table_name;
-```
-
-Revisar una muestra y el conteo de hechos:
-
-```sql
-SELECT *
-FROM public.fact_sales
-LIMIT 10;
-
-SELECT count(*) AS filas_hechos
-FROM public.fact_sales;
-```
-
-La guía de hechos explica cómo comparar ese conteo con las transacciones de
-staging. Las pruebas deben terminar sin `FAIL` ni `ERROR`.
-
-### 11. Programar la actualización cada dos horas
-
-Con el flujo anterior preparado, ejecutar una vez el proceso completo:
-
-```powershell
-python scripts/ejecutar_job.py
-```
-
-Este proceso actualiza las ocho tablas de staging desde `public`, ejecuta dbt
-con sus pruebas en ambas conexiones y compara las medidas de hechos con staging.
-El resultado debe ser `CORRECTO` en `logs/jobs/ultima_ejecucion.json`.
-
-Registrar la tarea desde la cuenta de Windows que utilizará el proyecto:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-    -File .\scripts\registrar_job.ps1 `
-    -PythonExecutable (Get-Command python).Source
-```
-
-La tarea **`Dunnhumby_ETL_cada_2_horas`** se registra en el **Programador de tareas
-de Windows** y empieza a ejecutarse dos horas después del registro. Utiliza dbt
-para las transformaciones y trabaja con `dunnhumby_etl` y `Data_warehouse`.
-El equipo debe estar encendido, PostgreSQL disponible y la cuenta de Windows
-debe mantener una sesión iniciada. Se puede bloquear la pantalla.
-
-Los resultados se guardan en `logs/jobs/`, excluido de Git. La
-[guía del job](docs/job_etl.md) explica las etapas, las comprobaciones de registro
-y los comandos para consultar, iniciar o desactivar la tarea. Si ya está
-registrada y activa en ese equipo, no hace falta repetir la instalación.
+- [Funcionamiento del job](docs/job_etl.md): qué hace cada ejecución, cómo se
+  conservan los IDs y cómo revisar los resultados.
+- [Configuración de pgAgent](docs/pgagent.md): pasos para instalarlo en otro
+  equipo o reconfigurarlo.
 
 ## Estructura del proyecto
 
@@ -298,15 +130,16 @@ registrada y activa en ese equipo, no hace falta repetir la instalación.
 | --- | --- |
 | `database/` | CSV locales, excluidos de Git. |
 | `scripts/cargar_bd.py` | Carga original desde CSV a PostgreSQL. |
-| `scripts/ejecutar_job.py` | Actualización completa de staging y ejecución de dbt con validaciones. |
-| `scripts/registrar_job.ps1` | Registro y comprobación de la tarea de Windows cada dos horas. |
-| `scripts/sql/` | Configuración, revisión de calidad, copia y validación de staging. |
+| `scripts/sql/` | Configuración, revisión de calidad, staging y esquema del warehouse. |
+| `scripts/preparar_pgagent.ps1` | Comprobación y generación de los comandos del job. |
+| `scripts/registrar_pgagent.ps1` | Registro del servicio y del job en pgAgent. |
+| `scripts/ejecutar_dbt_pgagent.ps1` | Lanzador del job: dbt, limpieza de dimensiones y logs. |
 | `models/sources/` | Declaraciones de las tablas que dbt usa como entrada. |
 | `models/staging/` | Modelos de las vistas limpias. |
 | `models/intermediate/` | Preparación del contexto promocional de las ventas. |
 | `models/dimensions/` | Modelos de las cuatro dimensiones. |
 | `models/facts/` | Modelo y pruebas de la tabla de hechos. |
-| `macros/` | Funciones reutilizables de dbt para lectura entre bases y configuración. |
+| `macros/` | Lectura entre bases, actualización por diferencias y limpieza de dimensiones. |
 | `docs/` | Guías detalladas de cada etapa. |
 | `profiles.example.yml` | Plantilla de las dos conexiones dbt. |
 | `.env.example` | Plantilla de variables de entorno, sin credenciales reales. |

@@ -1,66 +1,82 @@
-# Staging: tablas originales y vistas de dbt
+# Capa staging
 
-## Estructura acordada
+Esta guía cubre los pasos 5 y 8 del [README](../README.md): copiar las tablas
+originales a `staging` y crear sobre ellas las vistas limpias con dbt.
 
-- staging.transaction_data: tabla original con columnas del CSV.
-- staging.stg_transaction_data: vista preparada por dbt.
-- staging.causal_data: tabla original con columnas del CSV.
-- staging.stg_causal_data: vista preparada por dbt.
+En `dunnhumby_etl.staging` hay tres tipos de objetos:
 
-Las ocho fuentes se copian de public a staging con copiar_tablas_a_staging.sql.
-Los ocho modelos de vistas están implementados en `models/staging/`.
-También existe la vista `int_sales_promotional_context`, construida por el modelo
-de `models/intermediate/`. Las dimensiones y hechos se crean después en
-`Data_warehouse.public`, con una conexión diferente.
+| Objeto | Ejemplo | Quién lo crea |
+| --- | --- | --- |
+| Copia física de una tabla original, con las columnas del CSV | `staging.transaction_data` | `copiar_tablas_a_staging.sql` |
+| Vista limpia preparada | `staging.stg_transaction_data` | Modelos de `models/staging/` |
+| Vista intermedia de ventas con contexto promocional | `staging.int_sales_promotional_context` | Modelo de `models/intermediate/` |
 
-## Orden de ejecucion
+Las copias son la entrada de todo el proceso. El
+[job automático](job_etl.md) las lee pero no las actualiza: los datos nuevos
+deben cargarse en ellas antes de que lleguen al warehouse.
 
-1. Crear la base dunnhumby_etl y configurar roles y permisos.
-2. Si faltan las tablas de public, ejecutar python scripts/cargar_bd.py.
-3. Ejecutar completo copiar_tablas_a_staging.sql en pgAdmin.
-4. Ejecutar completo 00_validar_requisitos.sql en pgAdmin.
-5. Configurar `.env` y `profiles.yml` según la [guía de inicialización](inicializacion_dbt.md).
-6. Ejecutar desde la raíz del proyecto:
+## 1. Copiar las tablas a staging
+
+Requiere las tablas originales en `public` y los roles configurados
+([preparación de las bases](instrucciones_de_carga.md)).
+
+Con Query Tool conectado a **`dunnhumby_etl`**, ejecutar completos y en este orden:
+
+1. [copiar_tablas_a_staging.sql](../scripts/sql/staging/copiar_tablas_a_staging.sql):
+   copia las ocho tablas de `public` a `staging`.
+2. [00_validar_requisitos.sql](../scripts/sql/staging/00_validar_requisitos.sql):
+   comprueba las copias y concede a `rol_staging` lectura de las fuentes y
+   creación en `staging`. Ese rol debe estar asignado al usuario de dbt.
+
+**Resultado esperado:** ocho tablas físicas en `dunnhumby_etl.staging`.
+
+Detalles de la copia:
+
+- Conserva nombres, tipos y registros, pero no índices, claves, restricciones ni
+  valores predeterminados. `public` queda intacto.
+- Se ejecuta en una sola transacción. `causal_data` es grande: la copia tarda y
+  necesita espacio adicional.
+- Si alguna tabla o vista destino ya existe, se detiene sin sobrescribir. Si las
+  ocho copias ya están completas, pasar directamente a `00_validar_requisitos.sql`.
+- Si hay un error, ejecutar `ROLLBACK` por separado antes de reintentar. No
+  borrar objetos con `CASCADE`.
+
+## 2. Crear las vistas limpias
+
+Requiere las conexiones de dbt y `dblink` configuradas
+([inicialización de dbt](inicializacion_dbt.md)).
+
+1. Crear las ocho vistas `stg_` y la vista intermedia:
 
    ```powershell
-   python -m dotenv -f .env run -- dbt run --profiles-dir . --target dev --select path:models/staging path:models/intermediate
+   python -m dotenv -f .env run -- dbt run `
+       --profiles-dir . `
+       --target dev `
+       --select path:models/staging path:models/intermediate
    ```
 
-7. Ejecutar las pruebas de staging:
+2. Ejecutar las pruebas de las vistas:
 
    ```powershell
-   python -m dotenv -f .env run -- dbt test --profiles-dir . --target dev --select path:models/staging
+   python -m dotenv -f .env run -- dbt test `
+       --profiles-dir . `
+       --target dev `
+       --select path:models/staging
    ```
 
-8. Ejecutar `03_validar_staging.sql` en pgAdmin conectado a `dunnhumby_etl`.
-   Compara específicamente las vistas de transacciones y datos causales con sus
-   tablas de trabajo y evalúa sus conversiones.
+3. Como comprobación adicional, ejecutar
+   [03_validar_staging.sql](../scripts/sql/staging/03_validar_staging.sql) en
+   Query Tool conectado a `dunnhumby_etl`. Compara las vistas de transacciones y
+   datos causales con sus copias y revisa las conversiones de tipos.
 
-Las vistas preparadas se crean exclusivamente con los modelos de dbt.
-Los descuentos conservan sus signos, los ceros y filas no se eliminan y
-los dias y semanas siguen siendo indices sin una fecha base inventada.
+**Resultado esperado:** ocho vistas `stg_` y `int_sales_promotional_context` en
+`dunnhumby_etl.staging`, con las pruebas en `PASS`.
 
-## Copia y objetos existentes
+Las vistas solo renombran columnas, convierten tipos y normalizan textos. Los
+descuentos conservan sus signos, no se eliminan filas ni ceros, y los días y
+semanas siguen siendo índices del dataset, sin una fecha base inventada.
 
-copiar_tablas_a_staging.sql conserva nombres, tipos y registros de public. No copia
-indices, claves, restricciones ni valores predeterminados. Necesita SELECT en
-public y permiso para crear tablas en staging. Todo se ejecuta en una sola
-transaccion con una misma instantanea de los datos. causal_data es grande:
-la copia requiere espacio adicional y puede tardar.
+Para agregar o modificar una vista, ver el
+[instructivo de modelos de staging](instructivo_dbt_ETL.md).
 
-El script comprueba las ocho fuentes y los ocho destinos antes de copiar.
-Si cualquier destino ya existe (tabla o vista), se detiene sin sobrescribirlo.
-No es un script de actualizacion periodica. Si ya existen copias completas,
-no repetir la copia; continuar con los requisitos. Si solo existen algunos
-objetos, revisar como completar la migracion antes de continuar.
-Si hay un error, ejecutar ROLLBACK por separado antes de reintentar.
-
-Los datos de public permanecen intactos. La copia inicial no refresca las tablas
-existentes. Con el [job configurado](job_etl.md), el proceso reemplaza el contenido
-de staging desde public cada dos horas y ejecuta después las transformaciones dbt.
-Los cambios de public se reflejan tras una ejecución completa correcta, no al instante.
-No borrar objetos con CASCADE. Los cambios anteriores de dbt pueden haber
-creado vistas sin prefijo; revisarlas antes de copiar sobre esos nombres.
-El usuario de dbt necesita SELECT en las fuentes y CREATE en staging;
-00_validar_requisitos.sql concede esos permisos a rol_staging, que debe estar
-asignado al usuario de dbt.
+Siguiente paso: [crear el modelo estrella](guia_dimensiones_dbt.md#3-ejecución).
