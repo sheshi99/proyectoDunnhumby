@@ -1,20 +1,12 @@
-{{ config(
-    materialized='table',
-    schema='public' if target.name == 'warehouse',
-    grants={'select': ['rol_data_warehouse']},
-    post_hook='alter table {{ this }} add primary key (household_id)'
-) }}
+{{ config(materialized='cambios', unique_key='household_id', schema='public' if target.name == 'warehouse') }}
 
 -- Una fila por hogar conocido, aunque no tenga perfil demográfico.
--- UNION reúne identificadores sin repetirlos; no deduplica las ventas.
+-- Consulta los hogares actuales y compara sus atributos con la dimensión.
 with households as (
     select household_id from {{ staging_view('stg_transaction_data') }}
-    union
-    select household_id from {{ staging_view('stg_campaign_table') }}
-    union
-    select household_id from {{ staging_view('stg_coupon_redemptions') }}
-    union
-    select household_id from {{ staging_view('stg_hh_demographic') }}
+    union select household_id from {{ staging_view('stg_campaign_table') }}
+    union select household_id from {{ staging_view('stg_coupon_redemptions') }}
+    union select household_id from {{ staging_view('stg_hh_demographic') }}
 )
 
 select

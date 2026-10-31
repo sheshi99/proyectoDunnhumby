@@ -1,17 +1,6 @@
-{{ config(
-    materialized='table',
-    schema='public' if target.name == 'warehouse',
-    grants={'select': ['rol_data_warehouse']},
-    post_hook=[
-        "{{ initialize_identity(this, 'promotional_context_id') }}",
-        'alter table {{ this }} add primary key (promotional_context_id)'
-    ]
-) }}
+{{ config(materialized='cambios', unique_key='context_key', identity_column='promotional_context_id', schema='public' if target.name == 'warehouse') }}
 
--- Una fila por combinación de atributos observada en ventas.
--- El identity se genera después de cargar las combinaciones, según el diagrama.
--- Una reconstrucción puede reasignar IDs: al existir fact_sales, su recarga
--- deberá coordinarse con esta dimensión. No conservar claves de una carga previa.
+-- Las combinaciones nuevas reciben IDENTITY; las existentes conservan su ID.
 with contexts as (
     select distinct
         has_promotion,
@@ -24,6 +13,8 @@ with contexts as (
     from {{ staging_view('int_sales_promotional_context') }}
 )
 select
-    row_number() over () as promotional_context_id,
+    jsonb_build_array(has_promotion, display_type, mailer_type,
+        household_in_active_campaign, active_campaigns_count,
+        product_associated_with_coupon, household_with_redemption_today) as context_key,
     contexts.*
 from contexts
