@@ -1,18 +1,18 @@
 -- Materialización de la tabla de hechos de ventas
 -- El target warehouse materializa en Data_warehouse.public
 -- otorga permisos de selección al rol rol_data_warehouse.
--- Conserva sale_detail_id e inserta nuevas líneas mediante su IDENTITY existente.
+-- Conserva sale_detail_id e inserta nuevas líneas mediante su IDENTITY.
 -- Asegura que la columna promotional_context_id no sea nula.
--- Conserva las claves foráneas existentes hacia las cuatro dimensiones.
--- Dependencias: dim_product, dim_household, dim_time,
--- dim_promotional_context
+-- Al crear la tabla agrega las claves foráneas hacia las cuatro dimensiones.
 
 -- depends_on: {{ ref('dim_product') }}
 -- depends_on: {{ ref('dim_household') }}
 -- depends_on: {{ ref('dim_time') }}
-{{ config(materialized='cambios', identity_column='sale_detail_id', schema='public' if target.name == 'warehouse') }}
+{{ config(materialized='cambios', identity_column='sale_detail_id', schema='public' if target.name == 'warehouse',
+    not_null_columns=['promotional_context_id'],
+    foreign_keys={'product_id': 'dim_product', 'household_id': 'dim_household',
+                  'time_id': 'dim_time', 'promotional_context_id': 'dim_promotional_context'}) }}
 
--- Una fila por línea original, sin DISTINCT ni agregación de ventas.
 -- El arreglo JSONB compara los siete atributos, incluidos NULL, con igualdad
 -- compatible con hash join. No se guarda este arreglo en la tabla de hechos.
 select

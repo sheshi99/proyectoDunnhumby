@@ -5,7 +5,8 @@
 -- Obliga a que dataset_day_number y dataset_week_number no sean nulos
 -- Se establece que dataset_day_number sea único, para evitar duplicados en la fuente
 
-{{ config(materialized='cambios', unique_key='time_id', schema='public' if target.name == 'warehouse') }}
+{{ config(materialized='cambios', unique_key='time_id', schema='public' if target.name == 'warehouse',
+    not_null_columns=['dataset_day_number', 'dataset_week_number'], unique_columns=['dataset_day_number']) }}
 
 -- Una fila por día observado en ventas, sin inventar fechas de calendario.
 -- Se conserva la semana registrada en la fuente, no se calcula con día / 7.
