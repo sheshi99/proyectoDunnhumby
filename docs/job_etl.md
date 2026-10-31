@@ -36,7 +36,7 @@ trabajo por separado: un error posterior no revierte los modelos ya terminados.
 - Productos y hogares guardan solo sus atributos actuales, sin historial.
 - Las dimensiones usadas por alguna venta no se borran, para mantener las FK.
 
-Por eso los modelos exigen que las tablas ya existan y rechazan `--full-refresh`.
+Por eso los modelos nunca reemplazan las tablas y rechazan `--full-refresh`.
 
 ## Revisar las ejecuciones
 

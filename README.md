@@ -98,8 +98,8 @@ una vista, ver el [instructivo de modelos de staging](docs/instructivo_dbt_ETL.m
 
 ### 9. Crear y cargar el modelo estrella
 
-Se crean las tablas vacías con `star_schema.sql` y dbt las carga con las
-dimensiones y la tabla de hechos, ejecutando sus pruebas.
+dbt crea las cuatro dimensiones y la tabla de hechos con sus claves, las carga
+y ejecuta sus pruebas. Todo el modelo estrella se construye con dbt.
 
 Guía: [Dimensiones](docs/guia_dimensiones_dbt.md), sección 3 (ejecución).
 El detalle de la tabla de ventas está en la [guía de hechos](docs/guia_hechos_dbt.md).
@@ -130,7 +130,7 @@ actual ya está activo.
 | --- | --- |
 | `database/` | CSV locales, excluidos de Git. |
 | `scripts/cargar_bd.py` | Carga original desde CSV a PostgreSQL. |
-| `scripts/sql/` | Configuración, revisión de calidad, staging y esquema del warehouse. |
+| `scripts/sql/` | Configuración, revisión de calidad, copia y validación de staging. |
 | `scripts/preparar_pgagent.ps1` | Comprobación y generación de los comandos del job. |
 | `scripts/registrar_pgagent.ps1` | Registro del servicio y del job en pgAgent. |
 | `scripts/ejecutar_dbt_pgagent.ps1` | Lanzador del job: dbt, limpieza de dimensiones y logs. |
