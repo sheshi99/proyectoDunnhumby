@@ -153,7 +153,9 @@ models:
 
 
 - name: stg_transaction_data
-  description: Vista de staging administrada por dbt; conserva los valores originales.
+  description: >-
+    Vista de staging administrada por dbt; conserva los valores originales y
+    agrega una fecha calculada desde la fecha base 2004-01-01.
   columns:
   - name: household_id
     data_type: integer
@@ -164,6 +166,9 @@ models:
   - name: transaction_day
     data_type: integer
     description: 'Columna fuente: DAY.'
+  - name: transaction_date
+    data_type: date
+    description: Fecha calculada; fecha base 2004-01-01 más DAY - 1. No viene en la fuente.
   - name: product_id
     data_type: bigint
     description: 'Columna fuente: PRODUCT_ID.'
