@@ -78,7 +78,7 @@ models:
 - name: stg_product
   description: >-
     Vista de siete columnas en minúscula. Conserva filas e identificadores;
-    convierte únicamente textos vacíos en NULL y conserva las etiquetas originales.
+    reemplaza los textos vacíos por 'not available' y conserva las etiquetas originales.
   columns:
   - name: product_id
     data_type: bigint
@@ -90,19 +90,19 @@ models:
     data_tests: [not_null]
   - name: department
     data_type: text
-    description: Departamento en minúscula y sin espacios exteriores; vacío como NULL.
+    description: Departamento en minúscula y sin espacios exteriores; vacío como 'not available'.
   - name: brand
     data_type: text
-    description: Marca en minúscula y sin espacios exteriores; vacío como NULL.
+    description: Marca en minúscula y sin espacios exteriores; vacío como 'not available'.
   - name: category
     data_type: text
-    description: COMMODITY_DESC en minúscula; conserva etiquetas y convierte vacíos en NULL.
+    description: COMMODITY_DESC en minúscula; conserva etiquetas y convierte vacíos en 'not available'.
   - name: subcategory
     data_type: text
-    description: SUB_COMMODITY_DESC en minúscula; conserva etiquetas y convierte vacíos en NULL.
+    description: SUB_COMMODITY_DESC en minúscula; conserva etiquetas y convierte vacíos en 'not available'.
   - name: product_size
     data_type: text
-    description: Tamaño y unidad como texto en minúscula; vacío como NULL, no cero.
+    description: Tamaño y unidad como texto en minúscula; vacío como 'not available', no cero.
 
 - name: stg_coupon
   description: >-
