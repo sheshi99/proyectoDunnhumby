@@ -90,8 +90,8 @@ Guía: [Inicialización de dbt](docs/inicializacion_dbt.md), sección 5.
 
 ### 8. Crear las vistas limpias
 
-dbt crea en `staging` las ocho vistas `stg_` y la vista
-`int_sales_promotional_context`, y ejecuta sus pruebas.
+dbt crea en `staging` las ocho vistas `stg_` y las vistas intermedias
+`int_household`, `int_time` e `int_sales_promotional_context`, y ejecuta sus pruebas.
 
 Guía: [Capa staging](docs/capa_staging.md), sección 2. Para agregar o modificar
 una vista, ver el [instructivo de modelos de staging](docs/instructivo_dbt_ETL.md).

@@ -1,23 +1,22 @@
-{{ config(materialized='cambios', unique_key='household_id', schema='public' if target.name == 'warehouse') }}
+-- Materializa la tabla
+-- El target warehouse materializa en Data_warehouse.public
+-- Se otorga permiso de lectura al rol rol_data_warehouse
+-- dim_household_id es el ID propio del warehouse (IDENTITY) y la llave primaria
+-- household_id conserva el código original de Dunnhumby; único y obligatorio
 
--- Una fila por hogar conocido, aunque no tenga perfil demográfico.
--- Consulta los hogares actuales y compara sus atributos con la dimensión.
-with households as (
-    select household_id from {{ staging_view('stg_transaction_data') }}
-    union select household_id from {{ staging_view('stg_campaign_table') }}
-    union select household_id from {{ staging_view('stg_coupon_redemptions') }}
-    union select household_id from {{ staging_view('stg_hh_demographic') }}
-)
+{{ config(materialized='cambios', unique_key='household_id', identity_column='dim_household_id',
+    schema='public' if target.name == 'warehouse',
+    not_null_columns=['age_group', 'marital_status', 'income_range', 'homeowner_status',
+        'household_composition', 'household_size', 'kids_category']) }}
 
+-- La unión de hogares y su perfil se hace en la vista int_household; aquí solo se insertan.
 select
-    households.household_id::bigint as household_id,
-    demographics.age_range::text as age_group,
-    demographics.marital_status_code::text as marital_status,
-    demographics.income_range::text as income_range,
-    demographics.homeownership_status::text as homeowner_status,
-    demographics.household_composition::text as household_composition,
-    demographics.household_size_category::text as household_size,
-    demographics.children_category::text as kids_category
-from households
-left join {{ staging_view('stg_hh_demographic', alias='demographics') }}
-    on households.household_id = demographics.household_id
+    household_id,
+    age_group,
+    marital_status,
+    income_range,
+    homeowner_status,
+    household_composition,
+    household_size,
+    kids_category
+from {{ staging_view('int_household') }}

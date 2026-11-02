@@ -3,34 +3,44 @@ models:
 
 - name: dim_product
   description: Tabla de productos en Data_warehouse.public.
-    Una fila por producto, con el identificador original como clave primaria. Consume
-    la limpieza de stg_product sin volver a transformar sus etiquetas.
+    Una fila por producto. dim_product_id es el ID propio del warehouse y
+    product_id conserva el código original. Consume la limpieza de stg_product
+    sin volver a transformar sus etiquetas.
   columns:
+  - name: dim_product_id
+    description: Clave primaria IDENTITY generada por el warehouse.
+    tests: [unique, not_null]
   - name: product_id
-    description: Clave primaria bigint; PRODUCT_ID original.
+    description: PRODUCT_ID original de Dunnhumby; único y obligatorio.
+    tests: [unique, not_null]
   - name: manufacturer
     description: Identificador de fabricante como bigint, conforme al diagrama.
   - name: department
-    description: Departamento preparado en staging.
+    description: Departamento preparado en staging; 'not available' si la fuente lo trae vacío.
   - name: brand
-    description: Marca preparada en staging.
+    description: Marca preparada en staging; 'not available' si la fuente la trae vacía.
   - name: category
-    description: Categoría preparada en staging.
+    description: Categoría preparada en staging; 'not available' si la fuente la trae vacía.
   - name: subcategory
-    description: Subcategoría preparada en staging.
+    description: Subcategoría preparada en staging; 'not available' si la fuente la trae vacía.
   - name: product_size
-    description: Tamaño descriptivo; conserva NULL si no está disponible.
+    description: Tamaño descriptivo; 'not available' si la fuente lo trae vacío.
 
 - name: dim_household
-  description: Dimensión de hogares en Data_warehouse.public. Reúne hogares de compras,
-    asignaciones a campañas, canjes y perfiles demográficos. Conserva el identificador
-    original; un hogar sin perfil tiene atributos NULL. No interpreta ni sustituye
-    categorías originales Unknown o None/Unknown.
+  description: Dimensión de hogares en Data_warehouse.public. Inserta la vista
+    int_household, que reúne hogares de compras, asignaciones a campañas, canjes y
+    perfiles demográficos. dim_household_id es el ID propio del warehouse y
+    household_id conserva el código original. Un hogar sin perfil tiene
+    'No demographic profile'; las categorías originales Unknown o None/Unknown se conservan.
   columns:
+  - name: dim_household_id
+    description: Clave primaria IDENTITY generada por el warehouse.
+    tests: [unique, not_null]
   - name: household_id
-    description: Identificador original del hogar como bigint; clave primaria.
+    description: household_key original de Dunnhumby; único y obligatorio.
+    tests: [unique, not_null]
   - name: age_group
-    description: Rango de edad original; NULL sin perfil disponible.
+    description: Rango de edad original; 'No demographic profile' sin perfil.
   - name: marital_status
     description: Código original de estado civil; no se inventa su significado.
   - name: income_range
@@ -46,42 +56,70 @@ models:
 
 - name: dim_time
   description: >-
-    Una fila por dia observado en las transacciones. Usa los indices originales
-    del dataset sin asignar fechas, anios, meses ni trimestres. time_id coincide
-    con dataset_day_number y permite relacionar cada venta con su dia y semana.
+    Una fila por dia observado en las transacciones. Inserta la vista int_time,
+    basada en la DIM_TIEMPO del curso. La fecha se calcula desde la fecha base
+    2004-01-01; dataset_day_number y dataset_week_number conservan DAY y WEEK_NO.
   columns:
-  - name: time_id
-    description: Clave primaria bigint basada en transaction_day.
+  - name: dim_time_id
+    description: Clave primaria; fecha como entero AAAAMMDD (equivale a FechaSK).
+    tests: [unique, not_null]
+  - name: calendar_date
+    description: Fecha calculada; fecha base 2004-01-01 mas DAY - 1. Unica.
   - name: dataset_day_number
-    description: Dia original del dataset; obligatorio y unico.
+    description: Dia original del dataset (DAY); obligatorio y unico.
   - name: dataset_week_number
-    description: Semana original de la transaccion; obligatoria, no calculada.
+    description: Semana original del dataset (WEEK_NO); se usa para unir con causal_data.
+  - name: calendar_year
+    description: Anio.
+  - name: calendar_quarter
+    description: Trimestre (1 a 4).
+  - name: calendar_month
+    description: Mes (1 a 12).
+  - name: week_of_year
+    description: Semana del anio como DATEPART(week); empieza en domingo y reinicia cada anio.
+  - name: day_of_month
+    description: Dia del mes.
+  - name: day_of_week
+    description: Dia de la semana como DATEPART(dw); 1 = domingo ... 7 = sabado.
+  - name: day_of_year
+    description: Dia del anio.
+  - name: quarter_name
+    description: Trimestre con anio, por ejemplo Q1/04.
+  - name: month_name
+    description: Nombre del mes en ingles.
+  - name: month_short_name
+    description: Nombre del mes en tres letras.
+  - name: week_name
+    description: Semana del anio con anio, por ejemplo Week 1/04.
+  - name: day_name
+    description: Dia y mes, por ejemplo 01 Jan.
+  - name: day_of_week_name
+    description: Nombre del dia de la semana en ingles.
 
 - name: dim_promotional_context
   description: >-
     Combinaciones de contexto observadas en ventas. No atribuye UPC ni campana
     individual a una transaccion. Los indicadores de cupones expresan disponibilidad
-    por producto y vigencia, no recepcion individual ni uso demostrado. Los IDs
-    existentes se conservan; solo las combinaciones nuevas reciben otra identidad.
+    por producto y vigencia, no recepcion individual ni uso demostrado. Cada
+    combinacion de los siete atributos es unica. Los IDs existentes se conservan;
+    solo las combinaciones nuevas reciben otra identidad.
   columns:
-  - name: promotional_context_id
-    description: Clave primaria bigint calculada al construir la tabla; IDENTITY para futuras inserciones.
-  - name: context_key
-    description: Arreglo JSONB de todos los atributos; clave estable que incluye los nulos.
+  - name: dim_promotional_context_id
+    description: Clave primaria IDENTITY generada por el warehouse.
     tests: [unique, not_null]
   - name: has_promotion
     description: >-
-      Evidencia de exhibicion o anuncio segun listas de codigos reconocidos.
-      NULL sin cobertura o informacion suficiente. No significa uso de cupon.
+      'Promotion' con evidencia de exhibicion o anuncio, 'No promotion' con ausencia
+      explicita y 'Undetermined' sin informacion suficiente. No significa uso de cupon.
   - name: display_type
-    description: Lista JSON ordenada de codigos distintos de display, guardada como texto; NULL sin cobertura.
+    description: Lista JSON ordenada de codigos distintos de display, guardada como texto; 'No causal data' sin cobertura.
   - name: mailer_type
-    description: Lista JSON ordenada de codigos distintos de mailer, guardada como texto; no implica pares con display.
+    description: Lista JSON ordenada de codigos distintos de mailer; 'No causal data' sin cobertura.
   - name: household_in_active_campaign
-    description: El hogar tiene al menos una campana asignada vigente ese dia.
+    description: "'In campaign' si el hogar tiene al menos una campana asignada vigente ese dia; si no, 'Not in campaign'."
   - name: active_campaigns_count
     description: Numero de campanas distintas asignadas y vigentes; cero si no hay.
   - name: product_associated_with_coupon
-    description: Existe un cupon del producto asociado a una campana vigente; no garantiza recepcion por el hogar.
+    description: "'Coupon available' si existe un cupon del producto en una campana vigente; si no, 'No coupon'. No garantiza recepcion por el hogar."
   - name: household_with_redemption_today
-    description: El hogar tiene alguna redencion registrada el mismo dia de compra, sin atribucion a una linea.
+    description: "'Redeemed' si el hogar canjeo algun cupon el mismo dia de compra; si no, 'Not redeemed'. Sin atribucion a una linea."

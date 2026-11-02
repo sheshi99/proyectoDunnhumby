@@ -86,38 +86,49 @@ La vista de ventas contiene los siete atributos promocionales. La dimensión
 vez y le asigna un identificador propio.
 
 El modelo de hechos compara los siete valores de cada venta con los de la
-dimensión. Cuando coinciden, incorpora su `promotional_context_id`. Así, la venta
-queda relacionada con la descripción promocional correspondiente.
+dimensión. Cuando coinciden, incorpora su `dim_promotional_context_id`. Así, la
+venta queda relacionada con la descripción promocional correspondiente.
 
-La comparación se realiza con un `LEFT JOIN`. El código reúne los siete valores
-con `jsonb_build_array` para compararlos juntos, incluidos los `NULL`. El arreglo
-se utiliza durante la consulta y no se almacena en la tabla final.
+La comparación se realiza con un `LEFT JOIN` que compara los siete atributos uno
+por uno. Como las vistas reemplazan los `NULL` por textos, la igualdad funciona
+en todos los casos.
 
 Varias ventas pueden compartir el mismo contexto y, por tanto, el mismo ID.
 Esto no las convierte en una sola venta: cada línea conserva sus propias medidas.
 Si alguna venta no encuentra contexto, el `LEFT JOIN` conserva esa línea, pero
-la restricción `NOT NULL` de `promotional_context_id` impide completar la carga.
+la restricción `NOT NULL` de `dim_promotional_context_id` impide completar la carga.
 
-### Paso 4. Seleccionar las columnas y actualizar la tabla
+### Paso 4. Obtener los IDs de producto, hogar y día
 
-El `SELECT` conserva las medidas y los identificadores de origen y cambia algunos
-nombres de columnas. Para producto y hogar se conservan los IDs originales; para
-tiempo se usa el día de la transacción. No necesita unir esas tres dimensiones
-para obtener sus IDs.
+Cada dimensión tiene un ID propio, distinto del código de Dunnhumby. El modelo
+une cada venta con su dimensión usando el código original y toma el ID propio:
+
+| Dimensión | Se une por | Toma |
+| --- | --- | --- |
+| `dim_product` | `product_id` | `dim_product_id` |
+| `dim_household` | `household_id` | `dim_household_id` |
+| `dim_time` | `transaction_day` = `dataset_day_number` | `dim_time_id` |
+
+Si una venta no encuentra alguna dimensión, su llave queda `NULL` y la
+restricción `NOT NULL` impide completar la carga.
+
+### Paso 5. Seleccionar las columnas y actualizar la tabla
+
+El `SELECT` conserva las medidas y cambia algunos nombres de columnas.
 
 La materialización `cambios` compara ese resultado con `fact_sales` y aplica
 solo las diferencias. En la primera ejecución crea la tabla con la identidad
-`sale_detail_id` como clave primaria, `promotional_context_id` obligatorio y las
+`sale_detail_id` como clave primaria, las cuatro llaves obligatorias y las
 claves foráneas declaradas en `foreign_keys`.
 
 ## 3. Relaciones con las dimensiones
 
 | Columna de `fact_sales` | Dimensión relacionada | Cómo se obtiene |
 | --- | --- | --- |
-| `product_id` | `dim_product` | Conserva el ID del producto vendido. |
-| `household_id` | `dim_household` | Conserva el ID del hogar que compró. |
-| `time_id` | `dim_time` | Usa el número de día de la venta. |
-| `promotional_context_id` | `dim_promotional_context` | Busca la combinación de atributos descrita arriba. |
+| `dim_product_id` | `dim_product` | Busca el producto por su código original. |
+| `dim_household_id` | `dim_household` | Busca el hogar por su código original. |
+| `dim_time_id` | `dim_time` | Busca el día de la venta. |
+| `dim_promotional_context_id` | `dim_promotional_context` | Busca la combinación de atributos descrita arriba. |
 
 Las campañas se analizan mediante `household_in_active_campaign` y
 `active_campaigns_count` en la dimensión de contexto promocional. Estos campos
@@ -125,13 +136,13 @@ permiten comparar el gasto y las compras según la vigencia de campañas asignad
 al hogar, sin atribuir cada venta a una campaña individual.
 
 Una restricción `FOREIGN KEY` comprueba que un identificador no nulo exista en
-la dimensión correspondiente. Por ejemplo, el `product_id` de una venta debe
+la dimensión correspondiente. Por ejemplo, el `dim_product_id` de una venta debe
 existir en `dim_product`; la restricción evita guardar una referencia a un
 producto ausente de esa dimensión.
 
 Los `ref()` a las dimensiones registran las dependencias para que dbt construya
-las tablas en el orden necesario. En este modelo aparecen en los comentarios
-`depends_on` del inicio y en la consulta al contexto promocional.
+las tablas en el orden necesario. En este modelo aparecen en los `LEFT JOIN` a
+las cuatro dimensiones.
 
 `store_id` se conserva como dato de la venta. Actualmente no tiene una dimensión
 de tienda relacionada.

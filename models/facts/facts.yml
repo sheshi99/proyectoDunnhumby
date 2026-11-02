@@ -4,6 +4,8 @@ models:
     description: >-
       Una fila por línea original de compra. Conserva medidas y signos de staging.
       Las campañas se analizan mediante los indicadores de contexto promocional.
+      Las cuatro llaves son los IDs propios de las dimensiones, buscados con el
+      código original de cada venta.
       manufacturer_coupon_discount conserva coupon_match_discount de la fuente;
       el nombre responde al diagrama, no a una nueva interpretación del descuento.
       Las relaciones se comprueban con dbt test y restricciones FOREIGN KEY físicas.
@@ -11,31 +13,31 @@ models:
       - name: sale_detail_id
         description: Clave IDENTITY del warehouse; conserva las filas iguales y las correcciones reconocibles por sus campos originales.
         tests: [unique, not_null]
-      - name: product_id
+      - name: dim_product_id
         tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_product')
-                field: product_id
-      - name: household_id
+                field: dim_product_id
+      - name: dim_household_id
         tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_household')
-                field: household_id
-      - name: time_id
+                field: dim_household_id
+      - name: dim_time_id
         tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_time')
-                field: time_id
-      - name: promotional_context_id
+                field: dim_time_id
+      - name: dim_promotional_context_id
         tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_promotional_context')
-                field: promotional_context_id
+                field: dim_promotional_context_id

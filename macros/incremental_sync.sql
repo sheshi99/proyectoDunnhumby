@@ -20,12 +20,14 @@
       {{ comparar_ventas(relation, sql, cols, identity) }}
     {% endcall %}
   {% else %}
-  {% set key = config.require('unique_key') %}
-  {% set updates = [] %}{% set names = [] %}{% set values = [] %}{% set comparisons = [] %}
+  {% set keys = lista_columnas(config.require('unique_key')) %}
+  {% set updates = [] %}{% set names = [] %}{% set values = [] %}{% set comparisons = [] %}{% set matches = [] %}
   {% for col in cols if col.name != identity %}
     {% do names.append(adapter.quote(col.name)) %}
     {% do values.append('s.' ~ adapter.quote(col.name)) %}
-    {% if col.name != key %}
+    {% if col.name in keys %}
+      {% do matches.append('t.' ~ adapter.quote(col.name) ~ '=s.' ~ adapter.quote(col.name)) %}
+    {% else %}
       {% do updates.append(adapter.quote(col.name) ~ '=s.' ~ adapter.quote(col.name)) %}
       {% do comparisons.append('t.' ~ adapter.quote(col.name) ~ ' is distinct from s.' ~ adapter.quote(col.name)) %}
     {% endif %}
@@ -33,8 +35,8 @@
   {% call statement('main', auto_begin=True) %}
     with candidates as materialized ({{ sql }})
     merge into {{ relation }} t using candidates s
-    on t.{{ adapter.quote(key) }}=s.{{ adapter.quote(key) }}
-    when matched and ({{ comparisons|join(' or ') }}) then update set {{ updates|join(', ') }}
+    on {{ matches|join(' and ') }}
+    {% if comparisons %}when matched and ({{ comparisons|join(' or ') }}) then update set {{ updates|join(', ') }}{% endif %}
     when not matched then insert ({{ names|join(', ') }}) values ({{ values|join(', ') }})
   {% endcall %}
   {% endif %}
@@ -42,10 +44,17 @@
   {{ return({'relations': [relation]}) }}
 {% endmaterialization %}
 
+{# unique_key puede ser una columna o una lista de columnas; siempre devuelve una lista. #}
+{% macro lista_columnas(key) %}
+  {{ return([key] if key is string else key) }}
+{% endmacro %}
+
 {# Crea la tabla con las columnas y tipos del modelo, sin filas. La identidad va
    primero; la clave primaria es la identidad o, si no hay, unique_key. Las claves
    foráneas apuntan a la columna del mismo nombre en la dimensión indicada. #}
 {% macro crear_tabla(relation, query, identity, key, not_null_columns, unique_columns, foreign_keys) %}
+  {% set keys = [] %}
+  {% for col in (lista_columnas(key) if key else []) %}{% do keys.append(adapter.quote(col)) %}{% endfor %}
   create table {{ relation }} as
   select {% if identity %}null::bigint as {{ adapter.quote(identity) }}, {% endif %}s.*
   from (
@@ -55,10 +64,12 @@
   alter table {{ relation }} alter column {{ adapter.quote(identity) }} set not null;
   alter table {{ relation }} alter column {{ adapter.quote(identity) }} add generated always as identity;
   {% endif %}
-  alter table {{ relation }} add primary key ({{ adapter.quote(identity or key) }});
-  {% if identity and key %}
-  alter table {{ relation }} alter column {{ adapter.quote(key) }} set not null;
-  alter table {{ relation }} add unique ({{ adapter.quote(key) }});
+  alter table {{ relation }} add primary key ({{ adapter.quote(identity) if identity else keys|join(', ') }});
+  {% if identity and keys %}
+  {% for col in keys %}
+  alter table {{ relation }} alter column {{ col }} set not null;
+  {% endfor %}
+  alter table {{ relation }} add unique ({{ keys|join(', ') }});
   {% endif %}
   {% for col in not_null_columns %}
   alter table {{ relation }} alter column {{ adapter.quote(col) }} set not null;
@@ -84,14 +95,14 @@
   {% endfor %}
   with source_values as (
     select s.*,jsonb_build_array({{ source_values|join(',') }}) as row_value,
-      jsonb_build_array(s.household_id,s.basket_id,s.product_id,s.store_id,s.time_id,s.transaction_time) as line_key
+      jsonb_build_array(s.dim_household_id,s.basket_id,s.dim_product_id,s.store_id,s.dim_time_id,s.transaction_time) as line_key
     from ({{ query }}) s
   ), source_ranked as materialized (
     select *,row_number() over(partition by row_value order by line_key) as occurrence
     from source_values
   ), target_values as (
     select t.{{ adapter.quote(identity) }},jsonb_build_array({{ target_values|join(',') }}) as row_value,
-      jsonb_build_array(t.household_id,t.basket_id,t.product_id,t.store_id,t.time_id,t.transaction_time) as line_key
+      jsonb_build_array(t.dim_household_id,t.basket_id,t.dim_product_id,t.store_id,t.dim_time_id,t.transaction_time) as line_key
     from {{ relation }} t
   ), target_ranked as materialized (
     select *,row_number() over(partition by row_value order by {{ adapter.quote(identity) }}) as occurrence

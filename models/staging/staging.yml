@@ -78,7 +78,7 @@ models:
 - name: stg_product
   description: >-
     Vista de siete columnas en minúscula. Conserva filas e identificadores;
-    convierte únicamente textos vacíos en NULL y conserva las etiquetas originales.
+    reemplaza los textos vacíos por 'not available' y conserva las etiquetas originales.
   columns:
   - name: product_id
     data_type: bigint
@@ -90,19 +90,19 @@ models:
     data_tests: [not_null]
   - name: department
     data_type: text
-    description: Departamento en minúscula y sin espacios exteriores; vacío como NULL.
+    description: Departamento en minúscula y sin espacios exteriores; vacío como 'not available'.
   - name: brand
     data_type: text
-    description: Marca en minúscula y sin espacios exteriores; vacío como NULL.
+    description: Marca en minúscula y sin espacios exteriores; vacío como 'not available'.
   - name: category
     data_type: text
-    description: COMMODITY_DESC en minúscula; conserva etiquetas y convierte vacíos en NULL.
+    description: COMMODITY_DESC en minúscula; conserva etiquetas y convierte vacíos en 'not available'.
   - name: subcategory
     data_type: text
-    description: SUB_COMMODITY_DESC en minúscula; conserva etiquetas y convierte vacíos en NULL.
+    description: SUB_COMMODITY_DESC en minúscula; conserva etiquetas y convierte vacíos en 'not available'.
   - name: product_size
     data_type: text
-    description: Tamaño y unidad como texto en minúscula; vacío como NULL, no cero.
+    description: Tamaño y unidad como texto en minúscula; vacío como 'not available', no cero.
 
 - name: stg_coupon
   description: >-
@@ -153,7 +153,9 @@ models:
 
 
 - name: stg_transaction_data
-  description: Vista de staging administrada por dbt; conserva los valores originales.
+  description: >-
+    Vista de staging administrada por dbt; conserva los valores originales y
+    agrega una fecha calculada desde la fecha base 2004-01-01.
   columns:
   - name: household_id
     data_type: integer
@@ -164,6 +166,9 @@ models:
   - name: transaction_day
     data_type: integer
     description: 'Columna fuente: DAY.'
+  - name: transaction_date
+    data_type: date
+    description: Fecha calculada; fecha base 2004-01-01 más DAY - 1. No viene en la fuente.
   - name: product_id
     data_type: bigint
     description: 'Columna fuente: PRODUCT_ID.'
