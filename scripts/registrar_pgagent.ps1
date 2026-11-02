@@ -6,7 +6,9 @@
 param(
     [string]$DbtExecutable = (Get-Command dbt -ErrorAction Stop).Source,
     [string]$PgAgentExecutable = 'C:\Program Files\PostgreSQL\15\bin\pgagent.exe',
-    [string]$PsqlExecutable = 'C:\Program Files\PostgreSQL\15\bin\psql.exe'
+    [string]$PsqlExecutable = 'C:\Program Files\PostgreSQL\15\bin\psql.exe',
+    # Hora local (0-23) de la ejecución diaria; por defecto 2:00 a. m.
+    [ValidateRange(0,23)][int]$Hora = 2
 )
 # Ejecutar como administrador. Registra el job deshabilitado para validarlo
 # desde el servicio antes de habilitar el horario.
@@ -17,7 +19,8 @@ $jobConfigJson = & $jobDotenv -f (Join-Path $jobRoot '.env') list --format json
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo leer .env.' }
 $jobConfig = ($jobConfigJson -join "`n") | ConvertFrom-Json
 $jobService = 'DunnhumbyPgAgent'
-$jobName = 'Dunnhumby_ETL_cada_2_horas'
+$jobName = 'Dunnhumby_ETL_madrugada'
+$jobOldName = 'Dunnhumby_ETL_cada_2_horas'
 $jobDescription = 'Dunnhumby dbt por comparacion; administrado por scripts/registrar_pgagent.ps1'
 $jobLogs = Join-Path $jobRoot 'logs\jobs'
 $jobPassFile = Join-Path $jobLogs 'pgagent.pgpass'
@@ -40,6 +43,11 @@ try {
     $jobConnection = 'host={0} port={1} dbname=postgres user={2}' -f (Convert-LibpqField $jobHost), $jobPort, (Convert-LibpqField $jobUser)
     $jobCode = Get-Content -LiteralPath (Join-Path $jobLogs 'pgagent_ejecutar.cmd') -Raw -Encoding ASCII
     $jobSqlName = Convert-SqlLiteral $jobName
+    $jobSqlOldName = Convert-SqlLiteral $jobOldName
+    # pgAgent evalúa el horario en la zona del servidor (puede ser GMT); se envía
+    # la hora local con su desfase y PostgreSQL la convierte.
+    $jobSqlLocalTime = Convert-SqlLiteral ([DateTimeOffset]::new((Get-Date).Date.AddHours($Hora)).ToString('yyyy-MM-dd HH:mm:sszzz'))
+    $jobSqlScheduleName = Convert-SqlLiteral ('Diario {0:00}:00 hora local' -f $Hora)
     $jobSqlDescription = Convert-SqlLiteral $jobDescription
     $jobSqlCode = Convert-SqlLiteral $jobCode
     $jobSqlHost = Convert-SqlLiteral $env:COMPUTERNAME
@@ -47,8 +55,13 @@ try {
 CREATE EXTENSION IF NOT EXISTS pgagent;
 BEGIN;
 DO `$register`$
-DECLARE j integer;
+DECLARE j integer; h integer;
 BEGIN
+  -- El job anterior (cada dos horas) se renombra para no dejar dos jobs activos.
+  IF NOT EXISTS(SELECT 1 FROM pgagent.pga_job WHERE jobname=$jobSqlName) THEN
+    UPDATE pgagent.pga_job SET jobname=$jobSqlName WHERE jobname=$jobSqlOldName AND jobdesc=$jobSqlDescription;
+  END IF;
+  h := extract(hour from $jobSqlLocalTime::timestamptz);
   SELECT jobid INTO j FROM pgagent.pga_job WHERE jobname=$jobSqlName;
   IF j IS NOT NULL THEN
     IF EXISTS(SELECT 1 FROM pgagent.pga_job WHERE jobid=j AND (jobdesc<>$jobSqlDescription OR jobagentid IS NOT NULL)) THEN
@@ -65,9 +78,9 @@ BEGIN
   INSERT INTO pgagent.pga_jobstep(jstjobid,jstname,jstkind,jstcode,jstonerror)
   VALUES(j,'01_dbt_incremental','b',$jobSqlCode,'f');
   INSERT INTO pgagent.pga_schedule(jscjobid,jscname,jscenabled,jscstart,jscminutes,jschours,jscweekdays,jscmonthdays,jscmonths)
-  VALUES(j,'Cada dos horas',false,date_trunc('hour',now())+interval '2 hours',
+  VALUES(j,$jobSqlScheduleName,false,date_trunc('hour',now()),
     ARRAY(SELECT i=0 FROM generate_series(0,59) i),
-    ARRAY(SELECT i%2=0 FROM generate_series(0,23) i),
+    ARRAY(SELECT i=h FROM generate_series(0,23) i),
     array_fill(true,ARRAY[7]),array_fill(true,ARRAY[32]),array_fill(true,ARRAY[12]));
 END `$register`$;
 COMMIT;
