@@ -71,13 +71,22 @@ select
     sales.transaction_week,
     sales.coupon_discount,
     sales.coupon_match_discount,
-    causal.has_promotion,
-    causal.display_type,
-    causal.mailer_type,
-    coalesce(campaigns.active_campaigns_count, 0) > 0 as household_in_active_campaign,
+    -- Los atributos del contexto se guardan como texto y sin NULL.
+    -- 'No promotion' (se sabe que no hubo) es distinto de 'Undetermined' (no se puede saber).
+    case causal.has_promotion
+        when true then 'Promotion'
+        when false then 'No promotion'
+        else 'Undetermined'
+    end as has_promotion,
+    coalesce(causal.display_type, 'No causal data') as display_type,
+    coalesce(causal.mailer_type, 'No causal data') as mailer_type,
+    case when coalesce(campaigns.active_campaigns_count, 0) > 0
+        then 'In campaign' else 'Not in campaign' end as household_in_active_campaign,
     coalesce(campaigns.active_campaigns_count, 0) as active_campaigns_count,
-    coupons.product_id is not null as product_associated_with_coupon,
-    redemptions.household_id is not null as household_with_redemption_today
+    case when coupons.product_id is not null
+        then 'Coupon available' else 'No coupon' end as product_associated_with_coupon,
+    case when redemptions.household_id is not null
+        then 'Redeemed' else 'Not redeemed' end as household_with_redemption_today
 from {{ ref('stg_transaction_data') }} sales
 left join causal_by_key causal
     on sales.product_id = causal.product_id
