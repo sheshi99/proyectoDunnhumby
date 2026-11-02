@@ -6,4 +6,4 @@ SELECT "PRODUCT_ID"::bigint AS product_id,
        "WEEK_NO"::integer AS week_number,
         display::text AS display,
         mailer::text AS mailer
-from {{ source('dunnhumby_raw', 'causal_data') }}
+from {{ ref('causal_data') }}

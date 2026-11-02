@@ -9,4 +9,4 @@ SELECT household_key::integer AS household_id,
        "HH_COMP_DESC"::text AS household_composition,
        "HOUSEHOLD_SIZE_DESC"::text AS household_size_category,
        "KID_CATEGORY_DESC"::text AS children_category
-from {{ source('dunnhumby_raw', 'hh_demographic') }}
+from {{ ref('hh_demographic') }}

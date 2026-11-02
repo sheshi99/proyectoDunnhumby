@@ -129,7 +129,7 @@ models:
     - not_null
     - relationships:
         arguments:
-          to: source('dunnhumby_raw', 'campaign_desc')
+          to: ref('campaign_desc')
           field: '"CAMPAIGN"'
 
 - name: stg_causal_data

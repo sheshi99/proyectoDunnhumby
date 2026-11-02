@@ -18,4 +18,4 @@ SELECT household_key::integer AS household_id,
        "WEEK_NO"::integer AS transaction_week,
        "COUPON_DISC"::numeric AS coupon_discount,
        "COUPON_MATCH_DISC"::numeric AS coupon_match_discount
-from {{ source('dunnhumby_raw', 'transaction_data') }}
+from {{ ref('transaction_data') }}

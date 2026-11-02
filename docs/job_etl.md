@@ -1,6 +1,7 @@
 # Ejecución del job ETL
 
-El job `Dunnhumby_ETL_cada_2_horas` actualiza `Data_warehouse` desde staging.
+El job `Dunnhumby_ETL_cada_2_horas` sincroniza staging con `public` y actualiza
+`Data_warehouse` desde staging.
 Usa tres ejecutables de la carpeta `scripts/`. Todos los comandos se ejecutan en
 PowerShell desde la carpeta del proyecto.
 
@@ -39,9 +40,13 @@ Cualquiera de las dos llama a
 [ejecutar_dbt_pgagent.ps1](../scripts/ejecutar_dbt_pgagent.ps1), que:
 
 1. Comprueba que no haya otra ejecución en curso.
-2. Ejecuta `dbt build` para actualizar dimensiones y `fact_sales`, con sus pruebas.
-3. Ejecuta `limpiar_dimensiones` para borrar dimensiones que ya no usa ninguna venta.
-4. Guarda el log en `logs/jobs/` y el resumen en `ultima_ejecucion.json`.
+2. Ejecuta `dbt build` con target `dev` para llevar a staging los registros
+   nuevos, modificados o eliminados en `public` y probar las vistas. Si falla,
+   el warehouse no se toca.
+3. Ejecuta `dbt build` con target `warehouse` para actualizar dimensiones y
+   `fact_sales`, con sus pruebas.
+4. Ejecuta `limpiar_dimensiones` para borrar dimensiones que ya no usa ninguna venta.
+5. Guarda el log en `logs/jobs/` y el resumen en `ultima_ejecucion.json`.
 
 ## Paso 4. Revisar el resultado
 

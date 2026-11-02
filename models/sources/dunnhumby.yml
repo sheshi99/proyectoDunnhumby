@@ -1,9 +1,9 @@
 version: 2
 sources:
 - name: dunnhumby
-  schema: staging
-  description: Copias físicas en staging; conservan los nombres de columnas
-    del CSV.
+  schema: public
+  description: Tablas originales cargadas desde los CSV; no se modifican. dbt
+    las copia a staging con los modelos de models/sincronizacion.
   tables:
   - name: campaign_desc
     description: Catálogo de campañas; grano esperado una campaña.
@@ -140,19 +140,7 @@ sources:
       data_type: text
       description: 'Columna fuente: CURR_SIZE_OF_PRODUCT.'
       quote: true
-
-
-- name: dunnhumby_raw
-  schema: staging
-  description: Copias físicas en staging; las vistas preparan estas copias para el warehouse.
-  tables:
-  - name: campaign_table
   - name: causal_data
-  - name: hh_demographic
+    description: Exhibición y publicidad por producto, tienda y semana.
   - name: transaction_data
-  - name: campaign_desc
-  - name: coupon_redempt
-  - name: product
-  - name: coupon
-
-
+    description: Líneas de compra por hogar, canasta, producto y día.
