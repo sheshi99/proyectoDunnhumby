@@ -1,4 +1,4 @@
-{{ config(materialized='cambios', unique_key='context_key', identity_column='promotional_context_id', schema='public' if target.name == 'warehouse') }}
+{{ config(materialized='cambios', unique_key='context_key', identity_column='dim_promotional_context_id', schema='public' if target.name == 'warehouse') }}
 
 -- Las combinaciones nuevas reciben IDENTITY; las existentes conservan su ID.
 with contexts as (

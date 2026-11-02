@@ -84,14 +84,14 @@
   {% endfor %}
   with source_values as (
     select s.*,jsonb_build_array({{ source_values|join(',') }}) as row_value,
-      jsonb_build_array(s.household_id,s.basket_id,s.product_id,s.store_id,s.time_id,s.transaction_time) as line_key
+      jsonb_build_array(s.dim_household_id,s.basket_id,s.dim_product_id,s.store_id,s.dim_time_id,s.transaction_time) as line_key
     from ({{ query }}) s
   ), source_ranked as materialized (
     select *,row_number() over(partition by row_value order by line_key) as occurrence
     from source_values
   ), target_values as (
     select t.{{ adapter.quote(identity) }},jsonb_build_array({{ target_values|join(',') }}) as row_value,
-      jsonb_build_array(t.household_id,t.basket_id,t.product_id,t.store_id,t.time_id,t.transaction_time) as line_key
+      jsonb_build_array(t.dim_household_id,t.basket_id,t.dim_product_id,t.store_id,t.dim_time_id,t.transaction_time) as line_key
     from {{ relation }} t
   ), target_ranked as materialized (
     select *,row_number() over(partition by row_value order by {{ adapter.quote(identity) }}) as occurrence
