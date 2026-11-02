@@ -20,12 +20,14 @@
       {{ comparar_ventas(relation, sql, cols, identity) }}
     {% endcall %}
   {% else %}
-  {% set key = config.require('unique_key') %}
-  {% set updates = [] %}{% set names = [] %}{% set values = [] %}{% set comparisons = [] %}
+  {% set keys = lista_columnas(config.require('unique_key')) %}
+  {% set updates = [] %}{% set names = [] %}{% set values = [] %}{% set comparisons = [] %}{% set matches = [] %}
   {% for col in cols if col.name != identity %}
     {% do names.append(adapter.quote(col.name)) %}
     {% do values.append('s.' ~ adapter.quote(col.name)) %}
-    {% if col.name != key %}
+    {% if col.name in keys %}
+      {% do matches.append('t.' ~ adapter.quote(col.name) ~ '=s.' ~ adapter.quote(col.name)) %}
+    {% else %}
       {% do updates.append(adapter.quote(col.name) ~ '=s.' ~ adapter.quote(col.name)) %}
       {% do comparisons.append('t.' ~ adapter.quote(col.name) ~ ' is distinct from s.' ~ adapter.quote(col.name)) %}
     {% endif %}
@@ -33,8 +35,8 @@
   {% call statement('main', auto_begin=True) %}
     with candidates as materialized ({{ sql }})
     merge into {{ relation }} t using candidates s
-    on t.{{ adapter.quote(key) }}=s.{{ adapter.quote(key) }}
-    when matched and ({{ comparisons|join(' or ') }}) then update set {{ updates|join(', ') }}
+    on {{ matches|join(' and ') }}
+    {% if comparisons %}when matched and ({{ comparisons|join(' or ') }}) then update set {{ updates|join(', ') }}{% endif %}
     when not matched then insert ({{ names|join(', ') }}) values ({{ values|join(', ') }})
   {% endcall %}
   {% endif %}
@@ -42,10 +44,17 @@
   {{ return({'relations': [relation]}) }}
 {% endmaterialization %}
 
+{# unique_key puede ser una columna o una lista de columnas; siempre devuelve una lista. #}
+{% macro lista_columnas(key) %}
+  {{ return([key] if key is string else key) }}
+{% endmacro %}
+
 {# Crea la tabla con las columnas y tipos del modelo, sin filas. La identidad va
    primero; la clave primaria es la identidad o, si no hay, unique_key. Las claves
    foráneas apuntan a la columna del mismo nombre en la dimensión indicada. #}
 {% macro crear_tabla(relation, query, identity, key, not_null_columns, unique_columns, foreign_keys) %}
+  {% set keys = [] %}
+  {% for col in (lista_columnas(key) if key else []) %}{% do keys.append(adapter.quote(col)) %}{% endfor %}
   create table {{ relation }} as
   select {% if identity %}null::bigint as {{ adapter.quote(identity) }}, {% endif %}s.*
   from (
@@ -55,10 +64,12 @@
   alter table {{ relation }} alter column {{ adapter.quote(identity) }} set not null;
   alter table {{ relation }} alter column {{ adapter.quote(identity) }} add generated always as identity;
   {% endif %}
-  alter table {{ relation }} add primary key ({{ adapter.quote(identity or key) }});
-  {% if identity and key %}
-  alter table {{ relation }} alter column {{ adapter.quote(key) }} set not null;
-  alter table {{ relation }} add unique ({{ adapter.quote(key) }});
+  alter table {{ relation }} add primary key ({{ adapter.quote(identity) if identity else keys|join(', ') }});
+  {% if identity and keys %}
+  {% for col in keys %}
+  alter table {{ relation }} alter column {{ col }} set not null;
+  {% endfor %}
+  alter table {{ relation }} add unique ({{ keys|join(', ') }});
   {% endif %}
   {% for col in not_null_columns %}
   alter table {{ relation }} alter column {{ adapter.quote(col) }} set not null;

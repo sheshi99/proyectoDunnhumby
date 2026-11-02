@@ -12,8 +12,7 @@
 
 -- Cada venta busca el ID propio de cada dimensión con su código original.
 -- Si una venta no encuentra su dimensión, la llave queda NULL y la carga falla.
--- El arreglo JSONB compara los siete atributos del contexto con igualdad
--- compatible con hash join. No se guarda este arreglo en la tabla de hechos.
+-- El contexto se busca comparando sus siete atributos, que nunca son NULL.
 select
     product.dim_product_id,
     household.dim_household_id,
@@ -35,8 +34,10 @@ left join {{ ref('dim_household') }} household
 left join {{ ref('dim_time') }} calendar
     on sales.transaction_day = calendar.dataset_day_number
 left join {{ ref('dim_promotional_context') }} context
-    on jsonb_build_array(
-        sales.has_promotion, sales.display_type, sales.mailer_type,
-        sales.household_in_active_campaign, sales.active_campaigns_count,
-        sales.product_associated_with_coupon, sales.household_with_redemption_today
-    ) = context.context_key
+    on sales.has_promotion = context.has_promotion
+   and sales.display_type = context.display_type
+   and sales.mailer_type = context.mailer_type
+   and sales.household_in_active_campaign = context.household_in_active_campaign
+   and sales.active_campaigns_count = context.active_campaigns_count
+   and sales.product_associated_with_coupon = context.product_associated_with_coupon
+   and sales.household_with_redemption_today = context.household_with_redemption_today
