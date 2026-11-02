@@ -9,7 +9,7 @@ En `dunnhumby_etl.staging` hay tres tipos de objetos:
 | --- | --- | --- |
 | Copia física de una tabla original, con las columnas del CSV | `staging.transaction_data` | `copiar_tablas_a_staging.sql` |
 | Vista limpia preparada | `staging.stg_transaction_data` | Modelos de `models/staging/` |
-| Vista intermedia de ventas con contexto promocional | `staging.int_sales_promotional_context` | Modelo de `models/intermediate/` |
+| Vista intermedia que prepara una dimensión o los hechos | `staging.int_household`, `staging.int_time`, `staging.int_sales_promotional_context` | Modelos de `models/intermediate/` |
 
 Las copias son la entrada de todo el proceso. El
 [job automático](job_etl.md) las lee pero no las actualiza: los datos nuevos
@@ -69,12 +69,15 @@ Requiere las conexiones de dbt y `dblink` configuradas
    Query Tool conectado a `dunnhumby_etl`. Compara las vistas de transacciones y
    datos causales con sus copias y revisa las conversiones de tipos.
 
-**Resultado esperado:** ocho vistas `stg_` y `int_sales_promotional_context` en
+**Resultado esperado:** ocho vistas `stg_` y las tres vistas `int_` en
 `dunnhumby_etl.staging`, con las pruebas en `PASS`.
 
 Las vistas solo renombran columnas, convierten tipos y normalizan textos. Los
 descuentos conservan sus signos, no se eliminan filas ni ceros, y los días y
-semanas siguen siendo índices del dataset, sin una fecha base inventada.
+semanas se conservan como índices del dataset. `stg_transaction_data` agrega
+`transaction_date`, calculada desde la fecha base supuesta `2004-01-01`.
+Los textos vacíos de producto se reemplazan por `'not available'`; ver
+[tratamiento de nulos](tratamiento_nulos.md).
 
 Para agregar o modificar una vista, ver el
 [instructivo de modelos de staging](instructivo_dbt_ETL.md).

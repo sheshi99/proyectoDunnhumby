@@ -15,22 +15,53 @@ medidas de `fact_sales` para sus consultas.
 | Modelo y tabla resultante | De dónde obtiene los datos | Qué representa una fila |
 | --- | --- | --- |
 | `dim_product` | Vista `stg_product`. | Un producto, con fabricante, departamento, marca, categoría y tamaño. |
-| `dim_household` | Vistas de transacciones, campañas por hogar, canjes y demografía. | Un hogar y sus datos demográficos disponibles. |
-| `dim_time` | Vista `stg_transaction_data`. | Un día de ventas y la semana que registra el dataset. |
+| `dim_household` | Vista `int_household`. | Un hogar y sus datos demográficos. |
+| `dim_time` | Vista `int_time`. | Un día de ventas, con su fecha, sus atributos de calendario y la semana que registra el dataset. |
 | `dim_promotional_context` | Vista `int_sales_promotional_context`. | Una combinación de condiciones promocionales. |
 
+Las dimensiones solo insertan lo que traen sus vistas: las uniones y los
+cálculos se hacen en staging.
 
-### Preparación de hogares en `dim_household`
+### IDs de las dimensiones
 
-El bloque `with households as (...)` es una consulta con nombre que se usa
-dentro del mismo modelo. No crea otra tabla permanente.
+Cada dimensión tiene un ID propio, que es su clave primaria y el que usa
+`fact_sales`. El código original de Dunnhumby se conserva como una columna más,
+con el mismo nombre que tiene en staging.
+
+| Dimensión | ID propio | Código original |
+| --- | --- | --- |
+| `dim_product` | `dim_product_id` (1, 2, 3…) | `product_id` |
+| `dim_household` | `dim_household_id` (1, 2, 3…) | `household_id` |
+| `dim_time` | `dim_time_id` (fecha como 20040101) | `dataset_day_number` |
+| `dim_promotional_context` | `dim_promotional_context_id` (1, 2, 3…) | — |
+
+Así, `_id` sin prefijo siempre es el código de Dunnhumby, y `dim_..._id` siempre
+es el ID del warehouse.
+
+
+### Preparación de hogares en `int_household`
+
+La vista [int_household.sql](../models/intermediate/int_household.sql) prepara
+los hogares en staging:
 
 1. Busca los IDs de hogares en compras, campañas, canjes y demografía.
 2. Los reúne con `UNION`, que deja cada ID una sola vez.
 3. Agrega los datos demográficos con `LEFT JOIN`.
 
 Por ejemplo: si el hogar 100 compró pero no tiene perfil demográfico, sigue
-apareciendo en la dimensión. Sus datos demográficos quedan en `NULL`.
+apareciendo en la dimensión. Sus datos demográficos dicen
+`'No demographic profile'`.
+
+### Preparación del calendario en `int_time`
+
+La vista [int_time.sql](../models/intermediate/int_time.sql) sigue la
+dimensión de tiempo del curso. Para cada día de ventas calcula la fecha y sus
+partes: año, trimestre, mes, semana del año, día del mes, día de la semana y
+sus nombres (`Q1/04`, `January`, `Week 1/04`, `Thursday`).
+
+La fecha sale de `transaction_date`, calculada en `stg_transaction_data` desde
+la fecha base `2004-01-01`. La vista conserva también `DAY` y `WEEK_NO`
+originales, porque los datos causales se unen por esa semana.
 
 ### Construcción de `dim_promotional_context`
 
@@ -42,7 +73,7 @@ Después, el modelo de la dimensión toma estas siete columnas:
 
 | Columna | Qué indica |
 | --- | --- |
-| `has_promotion` | Evidencia de promoción: verdadero, falso o desconocido (`NULL`). |
+| `has_promotion` | Evidencia de promoción: `'Promotion'`, `'No promotion'` o `'Undetermined'`. |
 | `display_type` | Códigos de exhibición observados, guardados como lista JSON en texto. |
 | `mailer_type` | Códigos de anuncio observados, guardados como lista JSON en texto. |
 | `household_in_active_campaign` | Si el hogar tenía alguna campaña asignada vigente ese día. |
@@ -51,7 +82,7 @@ Después, el modelo de la dimensión toma estas siete columnas:
 | `household_with_redemption_today` | Si el hogar registró algún canje ese día. |
 
 `DISTINCT` guarda cada combinación de los siete valores una sola vez. Dos ventas
-con la misma combinación comparten un `promotional_context_id`; ambas ventas
+con la misma combinación comparten un `dim_promotional_context_id`; ambas ventas
 se conservan por separado en `fact_sales`.
 
 Tener un cupón disponible no demuestra que se usó en esa compra. Un canje del
@@ -74,9 +105,9 @@ Los permisos de lectura vienen de los permisos predeterminados de
 | Parte del modelo | Para qué sirve |
 | --- | --- |
 | `materialized='cambios'` | Crea la tabla si no existe y después la actualiza por diferencias. |
-| `unique_key` | Columna con la que se reconoce cada fila al comparar: `product_id`, `household_id`, `time_id` o `context_key`. Es la clave primaria, salvo que haya `identity_column`. |
-| `identity_column` | ID generado por la tabla y clave primaria: `promotional_context_id` y `sale_detail_id`. Se conserva en las actualizaciones. |
-| `not_null_columns`, `unique_columns` | Restricciones adicionales al crear la tabla; por ejemplo, `dataset_day_number` en `dim_time`. |
+| `unique_key` | Columna o lista de columnas con la que se reconoce cada fila al comparar: `product_id`, `household_id`, `dim_time_id` o los siete atributos de `dim_promotional_context`. Es la clave primaria, salvo que haya `identity_column`; en ese caso queda como restricción única. |
+| `identity_column` | ID generado por la tabla y clave primaria: `dim_product_id`, `dim_household_id`, `dim_promotional_context_id` y `sale_detail_id`. Se conserva en las actualizaciones. |
+| `not_null_columns`, `unique_columns` | Restricciones adicionales al crear la tabla; por ejemplo, `dataset_day_number` y `calendar_date` únicos en `dim_time`. |
 | `foreign_keys` | En `fact_sales`, la dimensión a la que apunta cada columna. |
 | `schema='public' if target.name == 'warehouse'` | Con la conexión `warehouse`, las tablas están en `public`. |
 | `SELECT` | Elige las columnas, sus nombres y sus tipos. `::bigint`, por ejemplo, convierte a entero grande. |

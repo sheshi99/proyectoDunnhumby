@@ -3,58 +3,56 @@
 ## Procedimiento realizado
 
 Para realizar el tratamiento de valores faltantes, primero revisamos los datos
-fuente por medio de consultas de calidad. Con los resultados obtenidos, definimos
-las siguientes reglas:
+fuente por medio de las [consultas de calidad](../scripts/sql/RevisionCalidad/).
+Los datos originales no tienen valores `NULL`. Los datos faltantes aparecen en
+dos casos:
 
-- **NULL:** el dato es desconocido o no existe información suficiente. Se
-  aplica porque reemplazarlo por un supuesto modificaría el significado real
-  del dato.
-- **0:** se comprobó que la cantidad de registros o campañas es cero. Se
-  aplica cuando la ausencia de coincidencias representa efectivamente ausencia
-  de elementos, no desconocimiento.
-- **FALSE:** se comprobó que una condición no se cumple. Se aplica solamente
-  cuando existe evidencia explícita o el conteo permite determinar el resultado.
-- **Texto original:** se conserva cuando la fuente registró una categoría como
-  `Unknown` o `None/Unknown`. Se aplica porque esos textos son valores reales
-  de origen y pueden representar una categoría distinta de ausencia.
+- **Textos vacíos en la fuente:** campos de producto que solo contienen espacios.
+- **Cruces sin coincidencia:** por ejemplo, un hogar que compra pero no tiene
+  perfil demográfico, o una venta sin datos causales de promoción.
 
-Estas reglas se establecieron para evitar modificar datos que pudieran tener
-un significado diferente. También decidimos conservar los ceros y descuentos
-negativos, ya que pueden representar información válida dentro del dataset y
-no se encontraron evidencias suficientes para eliminarlos o convertirlos.
+Con estos resultados aplicamos las recomendaciones de Kimball:
+
+1. **Los atributos de las dimensiones no quedan en `NULL`.** Se reemplazan por
+   un texto que explica por qué falta el dato.
+2. **Los indicadores verdadero/falso se guardan como texto**, para que se
+   entiendan en los reportes y las tablas dinámicas.
+3. **Las claves foráneas de la tabla de hechos nunca son `NULL`.**
+4. **Las medidas de la tabla de hechos no se modifican.**
+
+Los textos van en inglés, igual que las columnas y los valores de la fuente. No
+se usa `Unknown` porque la fuente ya lo trae con otro significado.
 
 ## Justificación de las reglas
-
-Para aplicar las reglas tuvimos en cuenta los siguientes criterios:
 
 1. **No eliminar filas por datos incompletos.** La pérdida de un atributo
    descriptivo no convierte en inválida una transacción. Por ello, los hogares
    sin demografía y las ventas sin coincidencia promocional se mantienen.
 
-2. **Distinguir ausencia desconocida de ausencia comprobada.** Utilizamos
-   `NULL` cuando existe desconocimiento, mientras que `0` o `FALSE` indican que la ausencia pudo
-   comprobarse mediante los datos disponibles.
+2. **Explicar el motivo del dato faltante.** Un `NULL` aparece como "(en
+   blanco)" en una tabla dinámica y no dice por qué falta. Un texto como
+   `'No demographic profile'` forma un grupo propio que se puede contar y filtrar.
 
-3. **Conservar la trazabilidad de la fuente.** Las categorías originales y los
-   signos negativos no se modifican sin una regla de negocio que lo justifique.
+3. **Distinguir ausencia desconocida de ausencia comprobada.** `'No promotion'`
+   indica que se sabe que no hubo promoción; `'Undetermined'` indica que no se
+   puede saber.
 
-4. **Evitar introducir datos ficticios.** Reemplazar un atributo desconocido
-   por `Desconocido`, `Sin información` o una categoría arbitraria podría
-   afectar conteos y análisis posteriores.
+4. **Conservar la trazabilidad de la fuente.** Las categorías originales, como
+   `Unknown` o `None/Unknown`, y los signos negativos no se modifican sin una
+   regla de negocio que lo justifique.
 
-5. **Resolver cada dato en la capa correspondiente.** Realizamos la limpieza
-   básica en staging, los indicadores derivados se calculan en la vista
-   intermedia y las dimensiones reciben valores preparados sin volver a asumir
-   reglas de negocio.
+5. **Resolver cada dato en la capa correspondiente.** La limpieza de la fuente
+   se hace en las vistas `stg_`, los cruces entre tablas en las vistas
+   intermedias `int_`, y las dimensiones solo insertan valores ya preparados.
 
 ## Resumen de decisiones por capa
 
 | Capa | Qué se hizo | Justificación |
 |---|---|---|
-| Staging | Se convirtieron cadenas vacías en `NULL` y se conservaron valores válidos. | Permite normalizar datos faltantes sin eliminar registros ni modificar valores conocidos. |
-| Vista intermedia | Se calculó el contexto promocional, campañas y evidencia. | Consolida relaciones entre ventas y datos promocionales antes de construir el hecho. |
-| Dimensiones | Se conservaron entidades conocidas y atributos desconocidos como `NULL`. | Evita inventar atributos descriptivos y mantiene la integridad del modelo estrella. |
-| Data Warehouse | Se construyó un esquema estrella con hechos, dimensiones y llaves. | Permite relacionar eventos con sus atributos y realizar análisis eficientes. |
+| Staging (`stg_`) | Los textos vacíos de producto se reemplazaron por `'not available'`. | Normaliza los faltantes de la fuente sin eliminar registros. |
+| Vistas intermedias (`int_`) | Los cruces sin coincidencia y los indicadores se convirtieron en textos descriptivos. | Los faltantes aparecen al unir tablas; se resuelven donde se hace la unión. |
+| Dimensiones | Insertan los valores preparados; sus atributos son obligatorios. | Las dimensiones no vuelven a aplicar reglas de negocio. |
+| Data Warehouse | Esquema estrella con IDs propios y llaves foráneas obligatorias. | Cada venta queda relacionada con todas sus dimensiones. |
 
 # 1. Trabajo realizado en las vistas de staging
 
@@ -63,24 +61,26 @@ preparados antes de crear las dimensiones.
 
 ## 1.1. Productos
 
-La revisión de calidad encontró campos descriptivos que contenían espacios
-vacíos. Para corregirlos se utilizó la vista
+La revisión de calidad encontró campos descriptivos que solo contenían espacios:
+15 departamentos, 15 categorías, 15 subcategorías y 30 607 tamaños. Para
+corregirlos se utilizó la vista
 [stg_product.sql](../models/staging/stg_product.sql).
 
-Después de eliminar los espacios externos, las cadenas vacías se convirtieron
-en `NULL`:
+Después de eliminar los espacios externos, las cadenas vacías se reemplazan por
+`'not available'`:
 
 ```sql
-nullif(btrim("DEPARTMENT"), '')
+coalesce(nullif(lower(btrim("DEPARTMENT")), ''), 'not available')
 ```
 
-La misma regla se aplicó a categoría, subcategoría y tamaño.
+La misma regla se aplica a marca, categoría, subcategoría y tamaño. Va en
+minúscula porque la vista convierte todos los textos a minúscula.
 
 Ejemplo:
 
 ```text
-"   "       → NULL
-"groceries" → "groceries"
+"   "       → "not available"
+"GROCERY"   → "grocery"
 ```
 
 Las etiquetas `NO COMMODITY DESCRIPTION` y `NO SUBCOMMODITY DESCRIPTION`
@@ -91,12 +91,12 @@ también se conservaron, porque son textos registrados por la fuente.
 La vista [stg_hh_demographic.sql](../models/staging/stg_hh_demographic.sql)
 conservó las categorías originales `Unknown` y `None/Unknown`.
 
-Estas categorías son diferentes de un `NULL`:
+Estas categorías son diferentes de un hogar sin perfil:
 
 ```text
-Unknown       = categoría registrada por el sistema
-None/Unknown  = categoría registrada por el sistema
-NULL          = no existe información disponible
+Unknown                = categoría registrada por la fuente
+None/Unknown           = categoría registrada por la fuente
+No demographic profile = el hogar no aparece en hh_demographic
 ```
 
 ## 1.3. Transacciones
@@ -110,7 +110,10 @@ conservó los valores originales:
 - Descuentos negativos válidos.
 - Ceros en cantidad y venta.
 - Signos negativos.
-- Filas sin coincidencia con otra tabla, cuando corresponde.
+
+Además, agrega `transaction_date`, una fecha calculada a partir de la fecha
+base `2004-01-01` más los días del dataset (`DAY - 1`). Dunnhumby no publica
+fechas reales, por lo que esta fecha es un supuesto del proyecto.
 
 Ejemplo:
 
@@ -140,8 +143,6 @@ prepararon estas tablas de la siguiente manera:
 - Se convirtieron los identificadores al tipo requerido.
 - Se estandarizaron los nombres de las columnas.
 - Se conservaron todas las asignaciones y redenciones.
-- No se sustituyó un identificador faltante por otro valor, porque las revisiones
-  de calidad indicaron que las claves principales no presentan nulos.
 
 En `stg_campaign_descriptions` se aplica `trim` a `DESCRIPTION` para eliminar los
 espacios externos del tipo de campaña.
@@ -150,15 +151,12 @@ espacios externos del tipo de campaña.
 trim("DESCRIPTION") as campaign_type
 ```
 
-Esta limpieza conserva el texto original como `TypeA`, `TypeB`, entre otras
-categorías, pero elimina espacios que pudieran dificultar su comparación.
+En `stg_coupon` se utiliza `select distinct` para eliminar las 5 164 filas
+completamente duplicadas y mantener una sola asociación entre cupón, producto y
+campaña.
 
-En `stg_coupon` se utiliza `select distinct` para eliminar filas completamente
-duplicadas y mantener una sola asociación entre cupón, producto y campaña cuando
-la fuente repite la misma relación.
-
-Las tablas de campañas, cupones y redenciones no transformaron valores `NULL`
-adicionales, porque no se encontraron nulos que requirieran sustitución.
+Estas tablas no tienen valores nulos ni vacíos, por lo que no requirieron
+sustitución.
 
 ## 1.5. Datos causales
 
@@ -166,156 +164,156 @@ La vista [stg_causal_data.sql](../models/staging/stg_causal_data.sql) conserva
 los códigos originales `display` y `mailer`.
 
 Las revisiones de calidad encontraron que estas columnas no contienen valores
-vacíos ni nulos que deban sustituirse en staging. Por esta razón, se decidió
-preservar los códigos existentes y que la vista intermedia interprete su
-significado promocional.
+vacíos ni nulos. Por esta razón, se preservan los códigos existentes y la vista
+intermedia interpreta su significado promocional.
 
-# 2. Trabajo realizado en la vista intermedia
+# 2. Trabajo realizado en las vistas intermedias
+
+## 2.1. Hogares: `int_household`
+
+La vista [int_household.sql](../models/intermediate/int_household.sql) reúne los
+hogares de ventas, campañas, canjes y demografía con `UNION`, que deja cada
+hogar una sola vez. Después agrega su perfil con `LEFT JOIN`.
+
+La revisión de calidad encontró 1 699 hogares con compras que no aparecen en
+`hh_demographic`. A estos hogares les faltan los siete atributos a la vez, por
+lo que se usa un solo texto:
+
+```text
+age_group             = 'No demographic profile'
+marital_status        = 'No demographic profile'
+income_range          = 'No demographic profile'
+homeowner_status      = 'No demographic profile'
+household_composition = 'No demographic profile'
+household_size        = 'No demographic profile'
+kids_category         = 'No demographic profile'
+```
+
+Los hogares sin perfil permanecen en la dimensión y sus ventas permanecen en
+`fact_sales`.
+
+## 2.2. Contexto promocional: `int_sales_promotional_context`
 
 La vista [int_sales_promotional_context.sql](../models/intermediate/int_sales_promotional_context.sql)
-combina las ventas con información causal, campañas, cupones y redenciones.
+combina las ventas con información causal, campañas, cupones y redenciones. Las
+relaciones se resuelven con `LEFT JOIN`, para conservar las ventas aunque falten
+coincidencias con otras tablas.
 
-## 2.1. Hogares sin campañas activas
-
-Cuando el cruce no encontró campañas activas, se convirtió el valor en cero:
-
-```sql
-coalesce(campaigns.active_campaigns_count, 0)
-```
-
-Resultado:
+**Evidencia de promoción.** `has_promotion` tiene tres estados:
 
 ```text
-Sin campaña encontrada → 0 campañas activas
+'Promotion'    = existe evidencia positiva de promoción
+'No promotion' = existe evidencia explícita de ausencia
+'Undetermined' = no existe suficiente información para determinarlo
 ```
 
-## 2.2. Indicador de campaña activa
+En los datos actuales ninguna venta queda como `'No promotion'`, porque los
+datos causales no registran una ausencia explícita (display y mailer en `0`)
+para ninguna combinación de producto, tienda y semana.
 
-El indicador se determinó con base en el número de campañas:
+**Ventas sin datos causales.** Cuando una venta no tiene coincidencia en los
+datos causales, `display_type` y `mailer_type` quedan como `'No causal data'`.
+
+**Campañas activas.** Cuando el cruce no encuentra campañas activas, el conteo
+queda en cero y el indicador se define con base en ese conteo:
 
 ```text
-0 campañas → FALSE
-1 o más campañas → TRUE
+0 campañas       → 'Not in campaign'
+1 o más campañas → 'In campaign'
 ```
 
-## 2.3. Evidencia de promoción
-
-`has_promotion` puede contener tres estados:
+**Cupones y canjes:**
 
 ```text
-TRUE  = existe evidencia positiva de promoción
-FALSE = existe evidencia explícita de ausencia
-NULL  = no existe suficiente información para determinarlo
+Producto con cupón en campaña vigente → 'Coupon available', si no 'No coupon'
+Hogar con canje el mismo día          → 'Redeemed', si no 'Not redeemed'
 ```
 
-`NULL` y `FALSE` tienen significados diferentes:
+## 2.3. Tiempo: `int_time`
 
-```text
-FALSE = se sabe que no existe promoción
-NULL  = no se puede determinar si existe promoción
-```
-
-## 2.4. Relaciones sin coincidencia
-
-Las relaciones parciales se resolvieron con `LEFT JOIN`, para conservar las
-ventas aunque falten coincidencias con otras tablas.
-
-Por ejemplo:
-
-- Una venta puede no tener información causal.
-- Un hogar puede no tener perfil demográfico.
-- Un producto puede no estar relacionado con una promoción.
-
-En estos casos, se mantiene la venta y queda `NULL` el dato que no pudo
-determinarse.
+La vista [int_time.sql](../models/intermediate/int_time.sql) calcula los
+atributos de calendario de cada día a partir de `transaction_date`. Todos los
+días del dataset tienen ventas, fecha y semana, por lo que esta vista no
+genera nulos.
 
 # 3. Trabajo realizado en las dimensiones
 
-Las dimensiones reciben los datos ya preparados por staging y por la vista
-intermedia.
+Las dimensiones solo insertan los datos ya preparados por las vistas. Cada una
+tiene un ID propio generado por el warehouse y conserva el código original de
+Dunnhumby.
 
 ## 3.1. `dim_product`
 
-En esta dimensión se conservaron los productos, aunque algunos atributos
-descriptivos tengan `NULL`.
-
 ```text
-product_id = obligatorio
-manufacturer = obligatorio según la revisión actual
-department = puede ser NULL
-brand = puede ser NULL
-category = puede ser NULL
-subcategory = puede ser NULL
-product_size = puede ser NULL
+dim_product_id = obligatorio (ID propio)
+product_id     = obligatorio (código original)
+manufacturer   = obligatorio
+department, brand, category, subcategory, product_size
+               = obligatorios; 'not available' si la fuente los trae vacíos
 ```
-
-No se inventaron datos como departamento, categoría o tamaño.
 
 ## 3.2. `dim_household`
 
-La dimensión [dim_household.sql](../models/dimensions/dim_household.sql) reúne
-los hogares de ventas, campañas, canjes y demografía.
-
-Se utilizó `UNION` para evitar repetir hogares. Después, `LEFT JOIN` permitió
-conservar los hogares que no tienen perfil demográfico:
-
 ```text
-Hogar sin demografía:
-
-age_group        = NULL
-marital_status   = NULL
-income_range     = NULL
-homeowner_status = NULL
-household_size   = NULL
-kids_category    = NULL
+dim_household_id = obligatorio (ID propio)
+household_id     = obligatorio (código original)
+atributos        = obligatorios; 'No demographic profile' sin perfil
 ```
-
-Los hogares sin demografía permanecen en la dimensión y sus ventas permanecen
-en `fact_sales`.
 
 Las categorías originales `Unknown` y `None/Unknown` se conservan como texto
 cuando sí están registradas.
 
 ## 3.3. `dim_time`
 
-Los campos temporales se mantienen como índices del dataset. No se crean fechas
-o partes del calendario que no existan en la fuente.
+Todas las columnas son obligatorias, igual que en la dimensión de tiempo del
+curso.
 
 ```text
-time_id             = obligatorio
-dataset_day_number  = obligatorio
-dataset_week_number = obligatorio
+dim_time_id         = obligatorio (fecha como AAAAMMDD)
+calendar_date       = obligatorio y único
+dataset_day_number  = obligatorio y único (DAY original)
+dataset_week_number = obligatorio (WEEK_NO original)
 ```
 
 ## 3.4. `dim_promotional_context`
 
-Esta dimensión recibe las combinaciones calculadas por la vista intermedia.
-
 ```text
-promotional_context_id = generado automáticamente
-has_promotion = TRUE, FALSE o NULL
-display_type = lista JSON o NULL
-mailer_type = lista JSON o NULL
-household_in_active_campaign = TRUE o FALSE
-active_campaigns_count = entero mayor o igual que cero
-product_associated_with_coupon = TRUE o FALSE
-household_with_redemption_today = TRUE o FALSE
+dim_promotional_context_id      = generado automáticamente
+has_promotion                   = 'Promotion', 'No promotion' o 'Undetermined'
+display_type                    = lista JSON o 'No causal data'
+mailer_type                     = lista JSON o 'No causal data'
+household_in_active_campaign    = 'In campaign' o 'Not in campaign'
+active_campaigns_count          = entero mayor o igual que cero
+product_associated_with_coupon  = 'Coupon available' o 'No coupon'
+household_with_redemption_today = 'Redeemed' o 'Not redeemed'
 ```
-
-Se utilizaron `0` y `FALSE` cuando la ausencia pudo comprobarse. Los `NULL`
-se mantuvieron únicamente cuando el dato seguía siendo desconocido.
 
 # 4. Resumen de lo aplicado
 
 | Situación | Resultado aplicado |
 |---|---|
-| Texto vacío en producto | `NULL` |
-| Hogar sin perfil demográfico | `NULL` en atributos demográficos |
-| Hogar sin campañas activas | `0` campañas |
-| Hogar fuera de campaña | `FALSE` |
-| Promoción desconocida | `NULL` |
-| Ausencia explícita de promoción | `FALSE` |
-| Categoría `Unknown` | Se conserva como texto |
-| Categoría `None/Unknown` | Se conserva como texto |
+| Texto vacío en producto | `'not available'` |
+| Hogar sin perfil demográfico | `'No demographic profile'` en los siete atributos |
+| Hogar sin campañas activas | `0` campañas y `'Not in campaign'` |
+| Venta sin datos causales | `'Undetermined'` y `'No causal data'` |
+| Ausencia explícita de promoción | `'No promotion'` |
+| Categoría `Unknown` o `None/Unknown` | Se conserva como texto |
 | Descuento negativo válido | Se conserva el signo negativo |
 | Cantidad o venta igual a cero | Se conserva el cero |
+| Llaves de `fact_sales` | Obligatorias; la carga falla si una venta no encuentra su dimensión |
+
+# 5. Verificación
+
+En Query Tool conectado a `Data_warehouse`, los tres conteos deben ser `0`:
+
+```sql
+SELECT count(*) FROM dim_household WHERE age_group IS NULL;
+SELECT count(*) FROM dim_product WHERE department IS NULL;
+SELECT count(*) FROM dim_promotional_context WHERE display_type IS NULL;
+```
+
+# 6. Pendiente
+
+`display_type` y `mailer_type` guardan los códigos como lista JSON (por ejemplo,
+`["0","3"]`). Kimball recomendaría traducirlos a una descripción legible. Queda
+por decidir si se hace.
