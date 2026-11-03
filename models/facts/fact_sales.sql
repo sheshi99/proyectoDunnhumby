@@ -24,8 +24,10 @@ select
     sales.quantity as quantity,
     sales.sales_value as sales_value,
     sales.retail_discount as retail_discount,
+    -- Según la guía de dunnhumby: COUPON_DISC es el cupón del fabricante y
+    -- COUPON_MATCH_DISC es la igualación de ese cupón por parte del comercio.
     sales.coupon_discount as coupon_discount,
-    sales.coupon_match_discount as manufacturer_coupon_discount
+    sales.coupon_match_discount as coupon_match_discount
 from {{ staging_view('int_sales_promotional_context', alias='sales') }}
 left join {{ ref('dim_product') }} product
     on sales.product_id = product.product_id

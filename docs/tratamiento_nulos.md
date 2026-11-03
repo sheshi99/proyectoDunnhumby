@@ -225,7 +225,9 @@ queda en cero y el indicador se define con base en ese conteo:
 **Cupones y canjes:**
 
 ```text
-Producto con cupón en campaña vigente → 'Coupon available', si no 'No coupon'
+Hogar en campaña TypeB/TypeC vigente con cupón del producto → 'Coupon received'
+Otro cupón vigente para el producto                         → 'Coupon available'
+Sin cupón vigente                                           → 'No coupon'
 Hogar con canje el mismo día          → 'Redeemed', si no 'Not redeemed'
 ```
 
@@ -280,11 +282,11 @@ dataset_week_number = obligatorio (WEEK_NO original)
 ```text
 dim_promotional_context_id      = generado automáticamente
 has_promotion                   = 'Promotion', 'No promotion' o 'Undetermined'
-display_type                    = lista JSON o 'No causal data'
-mailer_type                     = lista JSON o 'No causal data'
+display_type                    = descripción (por ejemplo, 'In-aisle') o 'No causal data'
+mailer_type                     = descripción (por ejemplo, 'Front page feature') o 'No causal data'
 household_in_active_campaign    = 'In campaign' o 'Not in campaign'
 active_campaigns_count          = entero mayor o igual que cero
-product_associated_with_coupon  = 'Coupon available' o 'No coupon'
+product_associated_with_coupon  = 'Coupon received', 'Coupon available' o 'No coupon'
 household_with_redemption_today = 'Redeemed' o 'Not redeemed'
 ```
 
@@ -312,8 +314,9 @@ SELECT count(*) FROM dim_product WHERE department IS NULL;
 SELECT count(*) FROM dim_promotional_context WHERE display_type IS NULL;
 ```
 
-# 6. Pendiente
+# 6. Códigos de display y mailer
 
-`display_type` y `mailer_type` guardan los códigos como lista JSON (por ejemplo,
-`["0","3"]`). Kimball recomendaría traducirlos a una descripción legible. Queda
-por decidir si se hace.
+`display_type` y `mailer_type` ya no guardan los códigos de Dunnhumby, sino su
+descripción según la guía oficial del dataset (por ejemplo, `["7"]` ahora es
+`'In-aisle'`). El detalle está en
+[actualizacion_ids_kimball.md](actualizacion_ids_kimball.md).

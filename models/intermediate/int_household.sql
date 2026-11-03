@@ -13,7 +13,14 @@ with households as (
 select
     households.household_id::bigint as household_id,
     coalesce(demographics.age_range, 'No demographic profile')::text as age_group,
-    coalesce(demographics.marital_status_code, 'No demographic profile')::text as marital_status,
+    -- Códigos según dunnhumby (2014), The Complete Journey User Guide, página 3.
+    case
+        when demographics.household_id is null then 'No demographic profile'
+        when demographics.marital_status_code = 'A' then 'Married'
+        when demographics.marital_status_code = 'B' then 'Single'
+        when demographics.marital_status_code = 'U' then 'Unknown'
+        else 'Unknown code ' || coalesce(demographics.marital_status_code, 'NULL')
+    end::text as marital_status,
     coalesce(demographics.income_range, 'No demographic profile')::text as income_range,
     coalesce(demographics.homeownership_status, 'No demographic profile')::text as homeowner_status,
     coalesce(demographics.household_composition, 'No demographic profile')::text as household_composition,

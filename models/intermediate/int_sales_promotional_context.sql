@@ -9,6 +9,8 @@ with causal_rows as (
         week_number,
         display,
         mailer,
+        display_description,
+        mailer_description,
         display in ('1', '2', '3', '4', '5', '6', '7', '9', 'A')
             or mailer in ('A', 'C', 'D', 'F', 'H', 'J', 'L', 'P', 'X', 'Z')
             as positive_evidence,
@@ -24,10 +26,10 @@ with causal_rows as (
             when bool_and(coalesce(explicit_absence, false)) then false
             else null::boolean
         end as has_promotion,
-        -- Listas de códigos de cada canal, no combinaciones entre canales.
-        -- Mantener NULL como dato desconocido si apareciera en la fuente.
-        array_to_json(array_agg(distinct display order by display))::text as display_type,
-        array_to_json(array_agg(distinct mailer order by mailer))::text as mailer_type
+        -- Descripciones legibles de cada canal, en orden alfabético.
+        -- Si hay dos códigos, se unen con ' + '.
+        string_agg(distinct display_description, ' + ' order by display_description) as display_type,
+        string_agg(distinct mailer_description, ' + ' order by mailer_description) as mailer_type
     from causal_rows
     group by product_id, store_id, week_number
 ), observed_days as (
@@ -54,6 +56,25 @@ with causal_rows as (
     select distinct coupons.product_id, days.transaction_day
     from coupon_products coupons
     join campaign_days days on coupons.campaign_id = days.campaign_id
+), received_coupons as (
+    -- Según la guía de dunnhumby, en las campañas TypeB y TypeC cada hogar
+    -- participante recibe todos los cupones de la campaña. En TypeA solo recibe
+    -- 16 del total y no se sabe cuáles, por eso TypeA queda fuera.
+    select distinct assignments.household_id, coupons.product_id,
+        campaigns.start_day, campaigns.end_day
+    from household_campaigns assignments
+    join {{ ref('stg_campaign_descriptions') }} campaigns
+        on assignments.campaign_id = campaigns.campaign_id
+       and campaigns.campaign_type in ('TypeB', 'TypeC')
+    join coupon_products coupons on assignments.campaign_id = coupons.campaign_id
+), received_coupon_sales as (
+    -- Ventas en las que el hogar tenía un cupón vigente para ese producto.
+    select distinct sales.household_id, sales.product_id, sales.transaction_day
+    from {{ ref('stg_transaction_data') }} sales
+    join received_coupons received
+        on sales.household_id = received.household_id
+       and sales.product_id = received.product_id
+       and sales.transaction_day between received.start_day and received.end_day
 ), redemption_day as (
     select distinct household_id, redemption_day
     from {{ ref('stg_coupon_redemptions') }}
@@ -83,8 +104,13 @@ select
     case when coalesce(campaigns.active_campaigns_count, 0) > 0
         then 'In campaign' else 'Not in campaign' end as household_in_active_campaign,
     coalesce(campaigns.active_campaigns_count, 0) as active_campaigns_count,
-    case when coupons.product_id is not null
-        then 'Coupon available' else 'No coupon' end as product_associated_with_coupon,
+    -- 'Coupon received': el hogar recibió el cupón (campaña TypeB o TypeC vigente).
+    -- 'Coupon available': existe un cupón vigente, pero no se sabe si el hogar lo recibió.
+    case
+        when received.household_id is not null then 'Coupon received'
+        when coupons.product_id is not null then 'Coupon available'
+        else 'No coupon'
+    end as product_associated_with_coupon,
     case when redemptions.household_id is not null
         then 'Redeemed' else 'Not redeemed' end as household_with_redemption_today
 from {{ ref('stg_transaction_data') }} sales
@@ -98,6 +124,10 @@ left join household_day campaigns
 left join coupon_product_day coupons
     on sales.product_id = coupons.product_id
    and sales.transaction_day = coupons.transaction_day
+left join received_coupon_sales received
+    on sales.household_id = received.household_id
+   and sales.product_id = received.product_id
+   and sales.transaction_day = received.transaction_day
 left join redemption_day redemptions
     on sales.household_id = redemptions.household_id
    and sales.transaction_day = redemptions.redemption_day
