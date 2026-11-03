@@ -112,9 +112,9 @@ models:
       'Promotion' con evidencia de exhibicion o anuncio, 'No promotion' con ausencia
       explicita y 'Undetermined' sin informacion suficiente. No significa uso de cupon.
   - name: display_type
-    description: Lista JSON ordenada de codigos distintos de display, guardada como texto; 'No causal data' sin cobertura.
+    description: "Descripcion de la exhibicion en tienda (por ejemplo, 'In-aisle'); si hay dos, se unen con ' + ' en orden alfabetico. 'No causal data' sin cobertura."
   - name: mailer_type
-    description: Lista JSON ordenada de codigos distintos de mailer; 'No causal data' sin cobertura.
+    description: "Descripcion de la aparicion en el folleto (por ejemplo, 'Front page feature'); si hay dos, se unen con ' + ' en orden alfabetico. 'No causal data' sin cobertura."
   - name: household_in_active_campaign
     description: "'In campaign' si el hogar tiene al menos una campana asignada vigente ese dia; si no, 'Not in campaign'."
   - name: active_campaigns_count
