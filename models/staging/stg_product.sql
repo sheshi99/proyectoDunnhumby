@@ -14,4 +14,4 @@ select
     coalesce(nullif(lower(btrim("COMMODITY_DESC")), ''), 'not available')::text as category,
     coalesce(nullif(lower(btrim("SUB_COMMODITY_DESC")), ''), 'not available')::text as subcategory,
     coalesce(nullif(lower(btrim("CURR_SIZE_OF_PRODUCT")), ''), 'not available')::text as product_size
-from {{ source('dunnhumby_raw', 'product') }}
+from {{ ref('product') }}

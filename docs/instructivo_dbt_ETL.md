@@ -30,26 +30,28 @@ ejecútala en pgAdmin antes de decidir.
 
 ## Paso 2: declara la tabla de entrada
 
-Abre `models/sources/dunnhumby.yml`. Busca la fuente `dunnhumby_raw`, que en
-este proyecto apunta a `staging`, y agrega el nombre de la tabla bajo `tables:`.
+Abre `models/sources/dunnhumby.yml`. Busca la fuente `dunnhumby`, que apunta a
+las tablas originales de `public`, y agrega el nombre de la tabla bajo `tables:`.
 Por ejemplo:
 
 ```yaml
-- name: dunnhumby_raw
-  schema: staging
+- name: dunnhumby
+  schema: public
   tables:
   - name: campaign_desc
   - name: coupon_redempt
   - name: nombre_de_otra_tabla
 ```
 
-`nombre_de_otra_tabla` es un ejemplo: reemplázalo por el nombre real. Inclúyelo
-en `dunnhumby_raw` solo si la tabla está en `staging`. Todas las tablas listadas
-bajo una fuente comparten el mismo esquema.
+`nombre_de_otra_tabla` es un ejemplo: reemplázalo por el nombre real.
 
 Esta declaración no crea tablas. Le indica a dbt dónde encontrar las tablas
-que ya existen. Si una tabla está en otro esquema, declárala en otra fuente y
-especifica ese esquema.
+originales. Para copiarla a staging, crea `models/sincronizacion/nombre_de_otra_tabla.sql`
+igual que los demás archivos de esa carpeta:
+
+```sql
+select * from {{ source('dunnhumby', 'nombre_de_otra_tabla') }}
+```
 
 ## Paso 3: crea el modelo que limpia los datos
 
@@ -68,7 +70,7 @@ Usa esta estructura como guía y reemplaza las columnas por las de tu tabla:
 select
     "COLUMNA_ID" as id,
     trim("DESCRIPCION") as descripcion
-from {{ source('dunnhumby_raw', 'nombre_de_otra_tabla') }}
+from {{ ref('nombre_de_otra_tabla') }}
 ```
 
 Aplica solo las transformaciones justificadas por la revisión: por ejemplo,

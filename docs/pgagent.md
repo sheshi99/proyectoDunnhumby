@@ -52,14 +52,22 @@ credenciales. No ejecutarlos mientras el job esté corriendo.
    Toma las credenciales de `.env`, crea el archivo `pgpass`, registra el servicio
    `DunnhumbyPgAgent` y guarda el job con su horario, ambos deshabilitados.
    Si PostgreSQL no es la versión 15, indicar `-PgAgentExecutable` y `-PsqlExecutable`.
+   El job se programa a las 2:00 a. m. (hora local); para otra hora, indicar
+   `-Hora`, por ejemplo `-Hora 3`. Si existía el job anterior
+   `Dunnhumby_ETL_cada_2_horas`, se renombra y se le reemplaza el horario.
 
 3. **Probar el job.** En pgAdmin, abrir **pgAgent Jobs →
-   Dunnhumby_ETL_cada_2_horas**, usar **Run now** y comprobar en **Statistics**
+   Dunnhumby_ETL_madrugada**, usar **Run now** y comprobar en **Statistics**
    que termine con código 0.
 
 4. **Habilitar el horario.** En las propiedades del job, activar el job y el
-   horario **Cada dos horas** (minuto 00; horas 00, 02, …, 22; todos los días y
-   meses). Revisar **Next run**; el servidor del proyecto usa UTC−06:00.
+   horario **Diario 02:00 hora local**. Revisar **Next run**: debe mostrar las
+   2:00 a. m. del día siguiente.
+
+   pgAgent evalúa el horario en la zona horaria del servidor, que puede ser
+   distinta a la del equipo (por ejemplo GMT). El script convierte la hora local,
+   por eso en las propiedades del horario la hora marcada puede no ser 02
+   (en GMT, las 2:00 a. m. de Costa Rica son las 08).
 
 ## Cambio de credenciales
 

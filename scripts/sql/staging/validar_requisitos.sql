@@ -1,4 +1,4 @@
--- Ejecutar en dunnhumby_etl despues de copiar_tablas_a_staging.sql.
+-- Ejecutar en dunnhumby_etl despues de crear las copias con dbt (models/sincronizacion).
 -- Las vistas conservan todas las filas, nulos, signos y etiquetas originales.
 -- Las conversiones fallan ante tipos incompatibles; no se descartan registros.
 BEGIN;
@@ -19,7 +19,7 @@ BEGIN
         'coupon', 'coupon_redempt', 'hh_demographic', 'product', 'transaction_data']
     LOOP
         IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'staging' AND c.relname = tabla AND c.relkind IN ('r', 'p')) THEN
-            RAISE EXCEPTION 'Falta la tabla original staging.%. Ejecutar primero copiar_tablas_a_staging.sql.', tabla;
+            RAISE EXCEPTION 'Falta la tabla original staging.%. Ejecutar primero dbt run --target dev --select path:models/sincronizacion.', tabla;
         END IF;
     END LOOP;
 END $$;

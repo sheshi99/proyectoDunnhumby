@@ -3,7 +3,7 @@
 Proyecto ETL con PostgreSQL y dbt. Los datos originales del dataset Dunnhumby se
 conservan en una base de trabajo y los modelos dbt construyen un modelo estrella
 (cuatro dimensiones y una tabla de hechos) en otra base. Un job de pgAgent
-mantiene el warehouse actualizado cada dos horas.
+mantiene el warehouse actualizado cada madrugada, a las 2:00 a. m.
 
 ## Organización de los datos
 
@@ -14,7 +14,7 @@ mantiene el warehouse actualizado cada dos horas.
 | `Data_warehouse` | `public` | Cuatro dimensiones y la tabla de hechos `fact_sales`. |
 
 ```text
-CSV → public → copias en staging → vistas stg_ → dimensiones y hechos → job cada dos horas
+CSV → public → copias en staging → vistas stg_ → dimensiones y hechos → job diario 2:00 a. m.
 ```
 
 ## Cómo usar esta guía
@@ -114,10 +114,10 @@ Guía: [Hechos](docs/guia_hechos_dbt.md), sección 5 (validación).
 
 ### 11. Activar la actualización automática
 
-El job **`Dunnhumby_ETL_cada_2_horas`** de pgAgent compara cada dos horas las
-copias de staging con el warehouse y aplica solo las diferencias. No modifica
-staging: los datos nuevos deben estar cargados antes ahí. En la instalación
-actual ya está activo.
+El job **`Dunnhumby_ETL_madrugada`** de pgAgent se ejecuta todos los días a las
+2:00 a. m.: sincroniza las copias de staging con `public` y luego compara staging
+con el warehouse, aplicando solo las diferencias. Los datos nuevos se cargan en
+`public`.
 
 - [Funcionamiento del job](docs/job_etl.md): qué hace cada ejecución, cómo se
   conservan los IDs y cómo revisar los resultados.

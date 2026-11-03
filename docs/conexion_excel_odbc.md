@@ -204,7 +204,7 @@ los conteos pueden cambiar y se deben contrastar con el warehouse actual.
 3. Para volver a consultar el warehouse más adelante, abrir el libro y pulsar
    **Datos → Actualizar todo**.
 
-pgAgent actualiza el warehouse cada dos horas, pero eso no actualiza por sí
+pgAgent actualiza el warehouse cada madrugada (2:00 a. m.), pero eso no actualiza por sí
 solo los datos ya importados al libro. **Actualizar todo** vuelve a ejecutar
 las consultas de Excel contra PostgreSQL.
 

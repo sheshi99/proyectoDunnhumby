@@ -6,6 +6,11 @@
 SELECT "PRODUCT_ID"::bigint AS product_id,
        "STORE_ID"::integer AS store_id,
        "WEEK_NO"::integer AS week_number,
+<<<<<<< HEAD
+        display::text AS display,
+        mailer::text AS mailer
+from {{ ref('causal_data') }}
+=======
        display::text AS display,
        mailer::text AS mailer,
        case display
@@ -36,3 +41,4 @@ SELECT "PRODUCT_ID"::bigint AS product_id,
            else 'Unknown code ' || coalesce(mailer, 'NULL')
        end AS mailer_description
 from {{ source('dunnhumby_raw', 'causal_data') }}
+>>>>>>> e15da1f28e909e2b4427d04751357c0ac71f139e

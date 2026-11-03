@@ -13,3 +13,5 @@ clean-targets:
 models:
   dunnhumby:
     +materialized: view
+    sincronizacion:
+      +materialized: sincronizar_origen
