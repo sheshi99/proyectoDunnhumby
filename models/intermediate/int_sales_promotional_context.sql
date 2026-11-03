@@ -56,6 +56,25 @@ with causal_rows as (
     select distinct coupons.product_id, days.transaction_day
     from coupon_products coupons
     join campaign_days days on coupons.campaign_id = days.campaign_id
+), received_coupons as (
+    -- Según la guía de dunnhumby, en las campañas TypeB y TypeC cada hogar
+    -- participante recibe todos los cupones de la campaña. En TypeA solo recibe
+    -- 16 del total y no se sabe cuáles, por eso TypeA queda fuera.
+    select distinct assignments.household_id, coupons.product_id,
+        campaigns.start_day, campaigns.end_day
+    from household_campaigns assignments
+    join {{ ref('stg_campaign_descriptions') }} campaigns
+        on assignments.campaign_id = campaigns.campaign_id
+       and campaigns.campaign_type in ('TypeB', 'TypeC')
+    join coupon_products coupons on assignments.campaign_id = coupons.campaign_id
+), received_coupon_sales as (
+    -- Ventas en las que el hogar tenía un cupón vigente para ese producto.
+    select distinct sales.household_id, sales.product_id, sales.transaction_day
+    from {{ ref('stg_transaction_data') }} sales
+    join received_coupons received
+        on sales.household_id = received.household_id
+       and sales.product_id = received.product_id
+       and sales.transaction_day between received.start_day and received.end_day
 ), redemption_day as (
     select distinct household_id, redemption_day
     from {{ ref('stg_coupon_redemptions') }}
@@ -85,8 +104,13 @@ select
     case when coalesce(campaigns.active_campaigns_count, 0) > 0
         then 'In campaign' else 'Not in campaign' end as household_in_active_campaign,
     coalesce(campaigns.active_campaigns_count, 0) as active_campaigns_count,
-    case when coupons.product_id is not null
-        then 'Coupon available' else 'No coupon' end as product_associated_with_coupon,
+    -- 'Coupon received': el hogar recibió el cupón (campaña TypeB o TypeC vigente).
+    -- 'Coupon available': existe un cupón vigente, pero no se sabe si el hogar lo recibió.
+    case
+        when received.household_id is not null then 'Coupon received'
+        when coupons.product_id is not null then 'Coupon available'
+        else 'No coupon'
+    end as product_associated_with_coupon,
     case when redemptions.household_id is not null
         then 'Redeemed' else 'Not redeemed' end as household_with_redemption_today
 from {{ ref('stg_transaction_data') }} sales
@@ -100,6 +124,10 @@ left join household_day campaigns
 left join coupon_product_day coupons
     on sales.product_id = coupons.product_id
    and sales.transaction_day = coupons.transaction_day
+left join received_coupon_sales received
+    on sales.household_id = received.household_id
+   and sales.product_id = received.product_id
+   and sales.transaction_day = received.transaction_day
 left join redemption_day redemptions
     on sales.household_id = redemptions.household_id
    and sales.transaction_day = redemptions.redemption_day
