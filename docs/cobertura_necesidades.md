@@ -42,10 +42,10 @@ Todas las consultas propuestas se pueden construir con las tablas actuales:
 
 | Consulta | Campos de la tabla dinámica |
 | --- | --- |
-| Descuentos totales y promedio por línea | Filas: `category`, `store_id` o `dataset_week_number`. Valores: suma y promedio de `retail_discount`, `coupon_discount` y `manufacturer_coupon_discount`. |
+| Descuentos totales y promedio por línea | Filas: `category`, `store_id` o `dataset_week_number`. Valores: suma y promedio de `retail_discount`, `coupon_discount` y `coupon_match_discount`. |
 | Ventas con y sin promoción, distinguiendo los casos sin cobertura | Filas: `has_promotion` (tres estados: con promoción, sin promoción y no determinado). Valores: suma de `sales_value` y `quantity`. |
 | Gasto de hogares con y sin canjes el mismo día | Filas: `household_with_redemption_today`. Valores: suma de `sales_value`. |
-| Productos elegibles para cupones frente a no elegibles | Filas: `product_associated_with_coupon`. Valores: suma de `sales_value` y `quantity`. |
+| Productos elegibles para cupones frente a no elegibles | Filas: `product_associated_with_coupon` (`Coupon received`, `Coupon available`, `No coupon`). Valores: suma de `sales_value` y `quantity`. |
 
 ### Departamento de análisis comercial
 
@@ -60,8 +60,7 @@ Todas las consultas propuestas se pueden construir con las tablas actuales:
 
 | Tabla de origen | Columna | Motivo |
 | --- | --- | --- |
-| `campaign_desc` | `DESCRIPTION` | Ninguna consulta compara tipos de campaña. |
-| `campaign_table` | `DESCRIPTION` | Igual que la anterior. |
+| `campaign_table` | `DESCRIPTION` | El tipo de campaña se toma de `campaign_desc`, que trae el mismo valor. |
 | `coupon` | `COUPON_UPC` | Solo se necesita saber si el producto tiene un cupón vigente. |
 | `coupon_redempt` | `COUPON_UPC` | Solo se necesita saber si el hogar canjeó ese día. |
 | `coupon_redempt` | `CAMPAIGN` | Igual que la anterior. |
@@ -90,3 +89,8 @@ cupón y de la campaña no es necesario.
    determinadas como `Undetermined` y los indicadores como textos
    (`In campaign`, `Coupon available`, etc.). Ver
    [tratamiento de nulos](tratamiento_nulos.md).
+6. **Ventas y gasto:** según la guía de dunnhumby, `sales_value` es lo que
+   recibe el comercio, no lo que pagó el cliente. Las consultas de "ventas" e
+   "ingresos" lo usan tal cual. En las de "gasto del hogar" es una
+   aproximación: si hubo cupón del fabricante, el cliente pagó
+   `sales_value + coupon_discount`, porque el descuento es negativo.
