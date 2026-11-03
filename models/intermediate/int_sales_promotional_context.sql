@@ -9,6 +9,8 @@ with causal_rows as (
         week_number,
         display,
         mailer,
+        display_description,
+        mailer_description,
         display in ('1', '2', '3', '4', '5', '6', '7', '9', 'A')
             or mailer in ('A', 'C', 'D', 'F', 'H', 'J', 'L', 'P', 'X', 'Z')
             as positive_evidence,
@@ -24,10 +26,10 @@ with causal_rows as (
             when bool_and(coalesce(explicit_absence, false)) then false
             else null::boolean
         end as has_promotion,
-        -- Listas de códigos de cada canal, no combinaciones entre canales.
-        -- Mantener NULL como dato desconocido si apareciera en la fuente.
-        array_to_json(array_agg(distinct display order by display))::text as display_type,
-        array_to_json(array_agg(distinct mailer order by mailer))::text as mailer_type
+        -- Descripciones legibles de cada canal, en orden alfabético.
+        -- Si hay dos códigos, se unen con ' + '.
+        string_agg(distinct display_description, ' + ' order by display_description) as display_type,
+        string_agg(distinct mailer_description, ' + ' order by mailer_description) as mailer_type
     from causal_rows
     group by product_id, store_id, week_number
 ), observed_days as (
