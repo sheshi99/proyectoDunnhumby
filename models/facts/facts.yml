@@ -6,8 +6,10 @@ models:
       Las campañas se analizan mediante los indicadores de contexto promocional.
       Las cuatro llaves son los IDs propios de las dimensiones, buscados con el
       código original de cada venta.
-      manufacturer_coupon_discount conserva coupon_match_discount de la fuente;
-      el nombre responde al diagrama, no a una nueva interpretación del descuento.
+      Los descuentos siguen la guía de dunnhumby: retail_discount es el de la
+      tarjeta de lealtad del comercio, coupon_discount el del cupón del fabricante
+      y coupon_match_discount la igualación de ese cupón por parte del comercio.
+      sales_value es lo que recibe el comercio, no lo que pagó el cliente.
       Las relaciones se comprueban con dbt test y restricciones FOREIGN KEY físicas.
     columns:
       - name: sale_detail_id
