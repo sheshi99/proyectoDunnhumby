@@ -150,6 +150,12 @@ models:
   - name: mailer
     data_type: text
     description: 'Columna fuente: mailer.'
+  - name: display_description
+    data_type: text
+    description: "Descripción del código display según la guía de dunnhumby (Not on display, In-aisle, etc.)."
+  - name: mailer_description
+    data_type: text
+    description: "Descripción del código mailer según la guía de dunnhumby (Not on ad, Front page feature, etc.)."
 
 
 - name: stg_transaction_data
