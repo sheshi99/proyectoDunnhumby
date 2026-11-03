@@ -52,6 +52,9 @@ Por ejemplo: si el hogar 100 compró pero no tiene perfil demográfico, sigue
 apareciendo en la dimensión. Sus datos demográficos dicen
 `'No demographic profile'`.
 
+El estado civil se traduce según la guía de dunnhumby: `A` → `'Married'`,
+`B` → `'Single'` y `U` → `'Unknown'`.
+
 ### Preparación del calendario en `int_time`
 
 La vista [int_time.sql](../models/intermediate/int_time.sql) sigue la
@@ -74,11 +77,11 @@ Después, el modelo de la dimensión toma estas siete columnas:
 | Columna | Qué indica |
 | --- | --- |
 | `has_promotion` | Evidencia de promoción: `'Promotion'`, `'No promotion'` o `'Undetermined'`. |
-| `display_type` | Códigos de exhibición observados, guardados como lista JSON en texto. |
-| `mailer_type` | Códigos de anuncio observados, guardados como lista JSON en texto. |
+| `display_type` | Exhibición en tienda, descrita según la guía de dunnhumby (por ejemplo, `'In-aisle'`); si hay dos, se unen con `' + '`. `'No causal data'` sin cobertura. |
+| `mailer_type` | Aparición en el folleto, descrita según la guía de dunnhumby (por ejemplo, `'Front page feature'`); si hay dos, se unen con `' + '`. `'No causal data'` sin cobertura. |
 | `household_in_active_campaign` | Si el hogar tenía alguna campaña asignada vigente ese día. |
 | `active_campaigns_count` | Cuántas campañas asignadas tenía activas. |
-| `product_associated_with_coupon` | Si el producto tenía un cupón asociado a una campaña vigente. |
+| `product_associated_with_coupon` | `'Coupon received'` si el hogar estaba en una campaña TypeB o TypeC vigente con cupón para el producto; `'Coupon available'` si había un cupón vigente sin saber si el hogar lo recibió; si no, `'No coupon'`. |
 | `household_with_redemption_today` | Si el hogar registró algún canje ese día. |
 
 `DISTINCT` guarda cada combinación de los siete valores una sola vez. Dos ventas
