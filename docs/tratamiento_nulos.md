@@ -225,7 +225,9 @@ queda en cero y el indicador se define con base en ese conteo:
 **Cupones y canjes:**
 
 ```text
-Producto con cupón en campaña vigente → 'Coupon available', si no 'No coupon'
+Hogar en campaña TypeB/TypeC vigente con cupón del producto → 'Coupon received'
+Otro cupón vigente para el producto                         → 'Coupon available'
+Sin cupón vigente                                           → 'No coupon'
 Hogar con canje el mismo día          → 'Redeemed', si no 'Not redeemed'
 ```
 
@@ -284,7 +286,7 @@ display_type                    = descripción (por ejemplo, 'In-aisle') o 'No c
 mailer_type                     = descripción (por ejemplo, 'Front page feature') o 'No causal data'
 household_in_active_campaign    = 'In campaign' o 'Not in campaign'
 active_campaigns_count          = entero mayor o igual que cero
-product_associated_with_coupon  = 'Coupon available' o 'No coupon'
+product_associated_with_coupon  = 'Coupon received', 'Coupon available' o 'No coupon'
 household_with_redemption_today = 'Redeemed' o 'Not redeemed'
 ```
 
