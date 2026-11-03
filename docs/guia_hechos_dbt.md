@@ -156,10 +156,10 @@ de tienda relacionada.
 | `store_id` | Tienda donde se registró. |
 | `transaction_time` | Hora registrada en la fuente, en formato numérico HHMM. |
 | `quantity` | Cantidad registrada. |
-| `sales_value` | Importe de la venta. |
-| `retail_discount` | Descuento del comercio. |
-| `coupon_discount` | Descuento de cupón. |
-| `manufacturer_coupon_discount` | Valor de `coupon_match_discount`, con el nombre definido para el warehouse. |
+| `sales_value` | Importe que recibe el comercio por la venta (`SALES_VALUE`). No es lo que pagó el cliente: si usó un cupón del fabricante, pagó `sales_value + coupon_discount` (el descuento es negativo). |
+| `retail_discount` | Descuento de la tarjeta de lealtad del comercio (`RETAIL_DISC`). |
+| `coupon_discount` | Descuento del cupón del fabricante (`COUPON_DISC`). |
+| `coupon_match_discount` | Igualación del cupón del fabricante por parte del comercio (`COUPON_MATCH_DISC`). |
 
 El modelo conserva los importes y los signos preparados en staging. No convierte
 los descuentos negativos a positivos ni aplica una escala fija de decimales.
