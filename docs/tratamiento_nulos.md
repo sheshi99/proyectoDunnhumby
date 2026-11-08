@@ -91,6 +91,9 @@ también se conservaron, porque son textos registrados por la fuente.
 La vista [stg_hh_demographic.sql](../models/staging/stg_hh_demographic.sql)
 conservó las categorías originales `Unknown` y `None/Unknown`.
 
+El estado civil (`MARITAL_STATUS_CODE`) llega como letra y se traduce después,
+en `int_household` (ver la sección 2.1).
+
 Estas categorías son diferentes de un hogar sin perfil:
 
 ```text
@@ -167,6 +170,11 @@ Las revisiones de calidad encontraron que estas columnas no contienen valores
 vacíos ni nulos. Por esta razón, se preservan los códigos existentes y la vista
 intermedia interpreta su significado promocional.
 
+Además, la vista agrega `display_description` y `mailer_description`, con la
+descripción de cada código según la guía de dunnhumby (ver la sección 6). Un
+código que no estuviera en esas tablas quedaría como `'Unknown code X'`, nunca
+como `NULL`.
+
 # 2. Trabajo realizado en las vistas intermedias
 
 ## 2.1. Hogares: `int_household`
@@ -188,6 +196,10 @@ household_composition = 'No demographic profile'
 household_size        = 'No demographic profile'
 kids_category         = 'No demographic profile'
 ```
+
+El estado civil se traduce según la guía de dunnhumby: `A` → `'Married'`,
+`B` → `'Single'` y `U` → `'Unknown'`. Este `'Unknown'` es el valor que registra
+la fuente, no un dato faltante.
 
 Los hogares sin perfil permanecen en la dimensión y sus ventas permanecen en
 `fact_sales`.
@@ -263,7 +275,8 @@ atributos        = obligatorios; 'No demographic profile' sin perfil
 ```
 
 Las categorías originales `Unknown` y `None/Unknown` se conservan como texto
-cuando sí están registradas.
+cuando sí están registradas. `marital_status` guarda la descripción
+(`Married`, `Single` o `Unknown`), no la letra.
 
 ## 3.3. `dim_time`
 
@@ -319,4 +332,4 @@ SELECT count(*) FROM dim_promotional_context WHERE display_type IS NULL;
 `display_type` y `mailer_type` ya no guardan los códigos de Dunnhumby, sino su
 descripción según la guía oficial del dataset (por ejemplo, `["7"]` ahora es
 `'In-aisle'`). El detalle está en
-[actualizacion_ids_kimball.md](actualizacion_ids_kimball.md).
+[actualizacion_proyecto.md](actualizacion_proyecto.md#2-códigos-de-display-y-mailer).

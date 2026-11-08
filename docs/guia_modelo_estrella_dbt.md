@@ -1,15 +1,107 @@
-# Cómo se crea la tabla de hechos con dbt
+# Cómo se crea el modelo estrella con dbt
 
-`fact_sales` guarda las ventas y las relaciona con las cuatro dimensiones.
-El modelo que la carga es [fact_sales.sql](../models/facts/fact_sales.sql) y la
-tabla está en **`Data_warehouse.public.fact_sales`**. Se carga junto con las
-dimensiones, con el comando de la
-[guía de dimensiones](guia_dimensiones_dbt.md#3-ejecución).
+El modelo estrella tiene cuatro dimensiones y una tabla de hechos. Las
+dimensiones describen los productos, hogares, días y condiciones promocionales
+de las ventas. `fact_sales` guarda las ventas y las relaciona con las cuatro
+dimensiones.
+
+Esta guía explica de dónde salen, cómo están configurados sus modelos, cómo se
+cargan en `Data_warehouse` (paso 9 del [README](../README.md)) y cómo se valida
+el resultado (paso 10 del [README](../README.md)).
+
+El modelo que carga los hechos es [fact_sales.sql](../models/facts/fact_sales.sql)
+y la tabla está en **`Data_warehouse.public.fact_sales`**. Se carga junto con las
+dimensiones, con el comando de la [sección 7](#7-ejecución).
 
 Las medidas y dimensiones permiten elaborar consultas de gerencia, ventas,
 marketing, promociones y análisis comercial.
 
-## 1. Qué información representa cada fila
+## 1. Dimensiones y fuentes de datos
+
+El modelo contiene cuatro dimensiones. Las campañas permanecen como fuentes en
+staging para calcular los indicadores de contexto promocional. Gerencia, ventas,
+marketing, promociones y análisis comercial utilizan esas dimensiones y las
+medidas de `fact_sales` para sus consultas.
+
+| Modelo y tabla resultante | De dónde obtiene los datos | Qué representa una fila |
+| --- | --- | --- |
+| `dim_product` | Vista `stg_product`. | Un producto, con fabricante, departamento, marca, categoría y tamaño. |
+| `dim_household` | Vista `int_household`. | Un hogar y sus datos demográficos. |
+| `dim_time` | Vista `int_time`. | Un día de ventas, con su fecha, sus atributos de calendario y la semana que registra el dataset. |
+| `dim_promotional_context` | Vista `int_sales_promotional_context`. | Una combinación de condiciones promocionales. |
+
+Las dimensiones solo insertan lo que traen sus vistas: las uniones y los
+cálculos se hacen en staging.
+
+### IDs de las dimensiones
+
+Cada dimensión tiene un ID propio, que es su clave primaria y el que usa
+`fact_sales`. El código original de Dunnhumby se conserva como una columna más,
+con el mismo nombre que tiene en staging.
+
+| Dimensión | ID propio | Código original |
+| --- | --- | --- |
+| `dim_product` | `dim_product_id` (1, 2, 3…) | `product_id` |
+| `dim_household` | `dim_household_id` (1, 2, 3…) | `household_id` |
+| `dim_time` | `dim_time_id` (fecha como 20040101) | `dataset_day_number` |
+| `dim_promotional_context` | `dim_promotional_context_id` (1, 2, 3…) | — |
+
+Así, `_id` sin prefijo siempre es el código de Dunnhumby, y `dim_..._id` siempre
+es el ID del warehouse.
+
+### Preparación de hogares en `int_household`
+
+La vista [int_household.sql](../models/intermediate/int_household.sql) prepara
+los hogares en staging:
+
+1. Busca los IDs de hogares en compras, campañas, canjes y demografía.
+2. Los reúne con `UNION`, que deja cada ID una sola vez.
+3. Agrega los datos demográficos con `LEFT JOIN`.
+
+Por ejemplo: si el hogar 100 compró pero no tiene perfil demográfico, sigue
+apareciendo en la dimensión. Sus datos demográficos dicen
+`'No demographic profile'`.
+
+El estado civil se traduce según la guía de dunnhumby: `A` → `'Married'`,
+`B` → `'Single'` y `U` → `'Unknown'`.
+
+### Preparación del calendario en `int_time`
+
+La vista [int_time.sql](../models/intermediate/int_time.sql) sigue la
+dimensión de tiempo del curso. Para cada día de ventas calcula la fecha y sus
+partes: año, trimestre, mes, semana del año, día del mes, día de la semana y
+sus nombres (`Q1/04`, `January`, `Week 1/04`, `Thursday`).
+
+La fecha sale de `transaction_date`, calculada en `stg_transaction_data` desde
+la fecha base `2004-01-01`. La vista conserva también `DAY` y `WEEK_NO`
+originales, porque los datos causales se unen por esa semana.
+
+### Construcción de `dim_promotional_context`
+
+Primero, la vista `int_sales_promotional_context` reúne para cada línea de venta
+información de anuncios, campañas, cupones y canjes. Esa vista permanece en staging.
+Resume las coincidencias antes de unirlas a ventas para evitar multiplicarlas.
+
+Después, el modelo de la dimensión toma estas siete columnas:
+
+| Columna | Qué indica |
+| --- | --- |
+| `has_promotion` | Evidencia de promoción: `'Promotion'`, `'No promotion'` o `'Undetermined'`. |
+| `display_type` | Exhibición en tienda, descrita según la guía de dunnhumby (por ejemplo, `'In-aisle'`); si hay dos, se unen con `' + '`. `'No causal data'` sin cobertura. |
+| `mailer_type` | Aparición en el folleto, descrita según la guía de dunnhumby (por ejemplo, `'Front page feature'`); si hay dos, se unen con `' + '`. `'No causal data'` sin cobertura. |
+| `household_in_active_campaign` | Si el hogar tenía alguna campaña asignada vigente ese día. |
+| `active_campaigns_count` | Cuántas campañas asignadas tenía activas. |
+| `product_associated_with_coupon` | `'Coupon received'` si el hogar estaba en una campaña TypeB o TypeC vigente con cupón para el producto; `'Coupon available'` si había un cupón vigente sin saber si el hogar lo recibió; si no, `'No coupon'`. |
+| `household_with_redemption_today` | Si el hogar registró algún canje ese día. |
+
+`DISTINCT` guarda cada combinación de los siete valores una sola vez. Dos ventas
+con la misma combinación comparten un `dim_promotional_context_id`; ambas ventas
+se conservan por separado en `fact_sales`.
+
+Tener un cupón disponible no demuestra que se usó en esa compra. Un canje del
+hogar tampoco identifica por sí solo el producto comprado.
+
+## 2. Tabla de hechos: qué información representa cada fila
 
 La tabla de hechos registra lo ocurrido en las compras: qué producto se compró,
 qué hogar realizó la compra, en qué día, cuántas unidades se registraron y cuáles
@@ -44,7 +136,7 @@ incluso si varios de sus valores coinciden.
 Con este detalle se pueden calcular después totales por producto, hogar o día.
 La tabla conserva las líneas individuales; las sumas se realizan al consultarla.
 
-## 2. Fuentes y construcción de la tabla
+## 3. Fuentes y construcción de la tabla de hechos
 
 La construcción utiliza los siguientes objetos, cada uno con una responsabilidad:
 
@@ -121,7 +213,7 @@ solo las diferencias. En la primera ejecución crea la tabla con la identidad
 `sale_detail_id` como clave primaria, las cuatro llaves obligatorias y las
 claves foráneas declaradas en `foreign_keys`.
 
-## 3. Relaciones con las dimensiones
+## 4. Relaciones con las dimensiones
 
 | Columna de `fact_sales` | Dimensión relacionada | Cómo se obtiene |
 | --- | --- | --- |
@@ -147,7 +239,7 @@ las cuatro dimensiones.
 `store_id` se conserva como dato de la venta. Actualmente no tiene una dimensión
 de tienda relacionada.
 
-## 4. Datos de cada venta
+## 5. Datos de cada venta
 
 | Columna | Contenido |
 | --- | --- |
@@ -168,10 +260,87 @@ los descuentos negativos a positivos ni aplica una escala fija de decimales.
 conserva en las actualizaciones. La [guía del job](job_etl.md#cómo-se-conservan-los-ids)
 explica cuándo una línea conserva su ID y cuándo se inserta como nueva.
 
-## 5. Validación de resultados
+## 6. Configuración de los modelos
 
-Esta validación corresponde al paso 10 del [README](../README.md). Para ejecutar
-las pruebas sin modificar las tablas:
+Todas las tablas del warehouse las crea y actualiza dbt con la materialización
+propia `cambios` ([incremental_sync.sql](../macros/incremental_sync.sql)):
+
+- **Primera ejecución:** si la tabla no existe, la crea con las columnas y tipos
+  del `SELECT`, agrega sus restricciones y la carga completa.
+- **Siguientes ejecuciones:** compara el `SELECT` con la tabla y aplica solo
+  inserciones, actualizaciones y eliminaciones, sin reemplazar la tabla.
+
+Los permisos de lectura vienen de los permisos predeterminados de
+`warehouse_roles_permisos.sql`. Por ejemplo,
+[dim_product.sql](../models/dimensions/dim_product.sql):
+
+| Parte del modelo | Para qué sirve |
+| --- | --- |
+| `materialized='cambios'` | Crea la tabla si no existe y después la actualiza por diferencias. |
+| `unique_key` | Columna o lista de columnas con la que se reconoce cada fila al comparar: `product_id`, `household_id`, `dim_time_id` o los siete atributos de `dim_promotional_context`. Es la clave primaria, salvo que haya `identity_column`; en ese caso queda como restricción única. |
+| `identity_column` | ID generado por la tabla y clave primaria: `dim_product_id`, `dim_household_id`, `dim_promotional_context_id` y `sale_detail_id`. Se conserva en las actualizaciones. |
+| `not_null_columns`, `unique_columns` | Restricciones adicionales al crear la tabla; por ejemplo, `dataset_day_number` y `calendar_date` únicos en `dim_time`. |
+| `foreign_keys` | En `fact_sales`, la dimensión a la que apunta cada columna. |
+| `schema='public' if target.name == 'warehouse'` | Con la conexión `warehouse`, las tablas están en `public`. |
+| `SELECT` | Elige las columnas, sus nombres y sus tipos. `::bigint`, por ejemplo, convierte a entero grande. |
+| `staging_view('stg_product')` | Lee la vista limpia de la primera base. |
+
+`warehouse` es el nombre de la conexión en `profiles.yml`, que apunta a la base
+`Data_warehouse`; no es un esquema.
+
+### Acceso a las vistas de staging
+
+La macro [staging_view.sql](../macros/staging_view.sql) permite que los modelos
+ejecutados en `Data_warehouse` consulten las vistas de `dunnhumby_etl.staging`
+mediante `dblink`. Obtiene los nombres y tipos de las columnas, genera la
+consulta de lectura y usa `ref()` para registrar la dependencia entre modelos.
+
+## 7. Ejecución
+
+Esta sección corresponde al paso 9 del [README](../README.md). Requiere los
+pasos 1 a 8 del [README](../README.md) completos: vistas de staging,
+conexiones, `dblink` y permisos.
+
+Crear y cargar las dimensiones y la tabla de hechos y ejecutar sus pruebas:
+
+```powershell
+python -m dotenv -f .env run -- dbt build `
+    --profiles-dir . `
+    --target warehouse `
+    --select path:models/dimensions path:models/facts
+```
+
+`--target warehouse` elige la conexión a `Data_warehouse`, `--select` elige las
+carpetas de modelos y `dbt build` crea o actualiza las tablas y ejecuta sus pruebas.
+dbt crea primero las dimensiones y después `fact_sales`, porque sus claves
+foráneas apuntan a ellas.
+
+La primera ejecución crea las tablas, inserta todos los datos y puede tardar varios minutos. Las
+siguientes solo aplican diferencias; normalmente las hace el
+[job automático](job_etl.md). `--full-refresh` está deshabilitado para no perder
+los IDs.
+
+Con `warehouse`, usar siempre esta selección. Un `dbt run` sin selección, o un
+`+` delante de un modelo, incluiría las vistas que deben crearse en la primera base.
+
+## 8. Verificación y validación de resultados
+
+Esta validación corresponde al paso 10 del [README](../README.md).
+
+### Revisar las dimensiones
+
+En pgAdmin, abrir Query Tool conectado a **`Data_warehouse`**:
+
+```sql
+select * from public.dim_product limit 10;
+select * from public.dim_household limit 10;
+select * from public.dim_time limit 10;
+select * from public.dim_promotional_context limit 10;
+```
+
+### Ejecutar las pruebas
+
+Para ejecutar las pruebas sin modificar las tablas:
 
 ```powershell
 python -m dotenv -f .env run -- dbt test `
@@ -189,6 +358,8 @@ Las diez pruebas definidas en `models/facts/facts.yml` revisan:
 `PASS` indica que una prueba pasó. Si aparece `FAIL` o `ERROR`, revisar el
 mensaje antes de continuar. Estas pruebas comprueban claves y relaciones;
 no comparan por sí solas todos los importes y líneas con staging.
+
+### Revisar las ventas
 
 Para ver las ventas en pgAdmin, abrir Query Tool conectado a **`Data_warehouse`**:
 
