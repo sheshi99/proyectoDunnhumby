@@ -86,4 +86,4 @@ predeterminados para objetos futuros.
 **Resultado esperado:** los resultados muestran la base, el esquema y el rol
 correspondientes, y las comprobaciones del warehouse devuelven `true`.
 
-Siguiente paso: [copiar las tablas a staging](capa_staging.md).
+Siguiente paso: [configurar las conexiones de dbt](inicializacion_dbt.md).

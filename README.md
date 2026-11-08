@@ -10,7 +10,7 @@ mantiene el warehouse actualizado cada madrugada, a las 2:00 a. m.
 | Base de datos | Esquema | Contenido |
 | --- | --- | --- |
 | `dunnhumby_etl` | `public` | Ocho tablas originales cargadas desde los CSV. |
-| `dunnhumby_etl` | `staging` | Copias de trabajo, ocho vistas limpias `stg_` y la vista intermedia de contexto promocional. |
+| `dunnhumby_etl` | `staging` | Copias de trabajo, ocho vistas limpias `stg_` y tres vistas intermedias `int_` (hogares, calendario y contexto promocional). |
 | `Data_warehouse` | `public` | Cuatro dimensiones y la tabla de hechos `fact_sales`. |
 
 ```text
@@ -66,14 +66,7 @@ uno en cada base.
 
 Guía: [Preparación de las bases y carga de datos](docs/instrucciones_de_carga.md), sección 5.
 
-### 5. Copiar las tablas originales a staging
-
-Se copian las ocho tablas de `public` a `staging`, donde trabaja dbt, y se
-validan los requisitos. `public` queda intacto.
-
-Guía: [Capa staging](docs/capa_staging.md), sección 1.
-
-### 6. Configurar las conexiones de dbt
+### 5. Configurar las conexiones de dbt
 
 Se crean los archivos locales `.env` y `profiles.yml` desde sus plantillas y se
 comprueban las dos conexiones: `dev` (staging) y `warehouse` (Data_warehouse).
@@ -81,12 +74,19 @@ Las credenciales no se suben a Git.
 
 Guía: [Inicialización de dbt](docs/inicializacion_dbt.md), secciones 1 a 4.
 
-### 7. Configurar la lectura entre las dos bases
+### 6. Configurar la lectura entre las dos bases
 
 `Data_warehouse` necesita leer las vistas de `dunnhumby_etl`. Se configura
 `dblink` con `psql` usando las variables de `.env`.
 
 Guía: [Inicialización de dbt](docs/inicializacion_dbt.md), sección 5.
+
+### 7. Copiar las tablas originales a staging
+
+dbt copia las ocho tablas de `public` a `staging`, donde trabaja, y se
+validan los requisitos. `public` queda intacto.
+
+Guía: [Capa staging](docs/capa_staging.md), sección 1.
 
 ### 8. Crear las vistas limpias
 
@@ -94,15 +94,16 @@ dbt crea en `staging` las ocho vistas `stg_` y las vistas intermedias
 `int_household`, `int_time` e `int_sales_promotional_context`, y ejecuta sus pruebas.
 
 Guía: [Capa staging](docs/capa_staging.md), sección 2. Para agregar o modificar
-una vista, ver el [instructivo de modelos de staging](docs/instructivo_dbt_ETL.md).
+una vista, ver la sección 3 de la misma guía.
 
 ### 9. Crear y cargar el modelo estrella
 
 dbt crea las cuatro dimensiones y la tabla de hechos con sus claves, las carga
 y ejecuta sus pruebas. Todo el modelo estrella se construye con dbt.
 
-Guía: [Dimensiones](docs/guia_dimensiones_dbt.md), sección 3 (ejecución).
-El detalle de la tabla de ventas está en la [guía de hechos](docs/guia_hechos_dbt.md).
+Guía: [Modelo estrella](docs/guia_modelo_estrella_dbt.md), sección 7 (ejecución).
+El detalle de las dimensiones está en las secciones 1 y 6, y el de la tabla de
+ventas en las secciones 2 a 5.
 
 ### 10. Validar el resultado
 
@@ -110,7 +111,7 @@ Se revisan las tablas creadas, una muestra de ventas y se compara el conteo de
 `fact_sales` con las transacciones de staging. Las pruebas no deben mostrar
 `FAIL` ni `ERROR`.
 
-Guía: [Hechos](docs/guia_hechos_dbt.md), sección 5 (validación).
+Guía: [Modelo estrella](docs/guia_modelo_estrella_dbt.md), sección 8 (validación).
 
 ### 11. Activar la actualización automática
 
@@ -119,10 +120,12 @@ El job **`Dunnhumby_ETL_madrugada`** de pgAgent se ejecuta todos los días a las
 con el warehouse, aplicando solo las diferencias. Los datos nuevos se cargan en
 `public`.
 
-- [Funcionamiento del job](docs/job_etl.md): qué hace cada ejecución, cómo se
-  conservan los IDs y cómo revisar los resultados.
-- [Configuración de pgAgent](docs/pgagent.md): pasos para instalarlo en otro
-  equipo o reconfigurarlo.
+Guía: [Ejecución y configuración del job ETL](docs/job_etl.md).
+
+- Secciones 4 y 5: qué hace cada ejecución, cómo se conservan los IDs y cómo
+  revisar los resultados.
+- Secciones 1 a 3 y 6: componentes, requisitos y pasos para instalar pgAgent en
+  otro equipo o reconfigurarlo.
 
 ## Estructura del proyecto
 
@@ -135,8 +138,9 @@ con el warehouse, aplicando solo las diferencias. Los datos nuevos se cargan en
 | `scripts/registrar_pgagent.ps1` | Registro del servicio y del job en pgAgent. |
 | `scripts/ejecutar_dbt_pgagent.ps1` | Lanzador del job: dbt, limpieza de dimensiones y logs. |
 | `models/sources/` | Declaraciones de las tablas que dbt usa como entrada. |
+| `models/sincronizacion/` | Copia y sincronización de las tablas de `public` en `staging`. |
 | `models/staging/` | Modelos de las vistas limpias. |
-| `models/intermediate/` | Preparación del contexto promocional de las ventas. |
+| `models/intermediate/` | Preparación de hogares (`int_household`), calendario (`int_time`) y contexto promocional de las ventas (`int_sales_promotional_context`). |
 | `models/dimensions/` | Modelos de las cuatro dimensiones. |
 | `models/facts/` | Modelo y pruebas de la tabla de hechos. |
 | `macros/` | Lectura entre bases, actualización por diferencias y limpieza de dimensiones. |

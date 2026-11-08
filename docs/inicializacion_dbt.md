@@ -1,6 +1,6 @@
 # Inicialización de dbt con PostgreSQL
 
-Esta guía cubre los pasos 6 y 7 del [README](../README.md): configurar las
+Esta guía cubre los pasos 5 y 6 del [README](../README.md): configurar las
 conexiones de dbt y la lectura entre las dos bases. Requiere el entorno virtual
 activo y las dependencias de `requirements-dbt.txt` instaladas
 ([preparación del entorno](instrucciones_de_carga.md)).
@@ -58,7 +58,7 @@ El perfil tiene dos conexiones (targets):
 
 | Target | Destino | Uso |
 | --- | --- | --- |
-| `dev` | `dunnhumby_etl.staging` | Vistas limpias y contexto promocional. |
+| `dev` | `dunnhumby_etl.staging` | Copias de las tablas originales, vistas limpias `stg_` y vistas intermedias `int_`. |
 | `warehouse` | `Data_warehouse.public` | Dimensiones y hechos. |
 
 `profiles.yml` también está excluido de Git.
@@ -113,4 +113,4 @@ Abrir PowerShell en la raíz del proyecto y activar el entorno:
 Las credenciales se cargan desde `.env` en cada comando; no hace falta
 configurarlas de nuevo.
 
-Siguiente paso: [crear las vistas limpias](capa_staging.md#2-crear-las-vistas-limpias).
+Siguiente paso: [copiar las tablas a staging](capa_staging.md#1-copiar-las-tablas-a-staging).
