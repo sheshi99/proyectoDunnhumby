@@ -190,7 +190,7 @@ En la carga realizada durante esta preparación se observaron:
 | `dim_household` | 2.500 |
 | `dim_product` | 92.353 |
 | `dim_time` | 711 |
-| `dim_promotional_context` | 1.165 |
+| `dim_promotional_context` | 1.331 |
 | `fact_sales` | 2.595.732 |
 
 Estos conteos son una referencia de esa carga. Si se actualizan las fuentes,
