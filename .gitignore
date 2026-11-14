@@ -11,3 +11,7 @@ profiles.yml
 logs/
 target/
 .user.yml
+
+
+tablas_dinamicas/*.xlsx
+tablas_dinamicas/~$*

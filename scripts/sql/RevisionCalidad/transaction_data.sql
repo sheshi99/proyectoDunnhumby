@@ -8,7 +8,7 @@
 
 -- Cantidad total de registros analizados.
 SELECT COUNT(*) AS total_registros
-FROM public.transaction_data;
+FROM raw.transaction_data;
 
 -- 1. IDENTIFICACIÓN DE VALORES NULOS
 -- Se revisan los datos faltantes de todas las columnas.
@@ -26,16 +26,16 @@ SELECT
     COUNT(*) FILTER (WHERE "WEEK_NO" IS NULL) AS semanas_nulas,
     COUNT(*) FILTER (WHERE "COUPON_DISC" IS NULL) AS cupones_descuento_nulos,
     COUNT(*) FILTER (WHERE "COUPON_MATCH_DISC" IS NULL) AS descuentos_adicionales_nulos
-FROM public.transaction_data;
+FROM raw.transaction_data;
 
 -- 2. IDENTIFICACIÓN DE REGISTROS DUPLICADOS
 -- Se cuentan únicamente las filas idénticas en todas las columnas.
 -- La repetición de un hogar, producto o canasta no implica por sí sola duplicidad.
 SELECT
-    (SELECT COUNT(*) FROM public.transaction_data) AS total_registros,
+    (SELECT COUNT(*) FROM raw.transaction_data) AS total_registros,
     COUNT(*) AS registros_unicos,
-    (SELECT COUNT(*) FROM public.transaction_data) - COUNT(*) AS registros_duplicados
-FROM (SELECT DISTINCT * FROM public.transaction_data) AS datos_unicos;
+    (SELECT COUNT(*) FROM raw.transaction_data) - COUNT(*) AS registros_duplicados
+FROM (SELECT DISTINCT * FROM raw.transaction_data) AS datos_unicos;
 
 -- 3. IDENTIFICACIÓN DE VALORES NEGATIVOS
 -- Se revisan todas las columnas numéricas. Los descuentos negativos
@@ -53,7 +53,7 @@ SELECT
     COUNT(*) FILTER (WHERE "WEEK_NO" < 0) AS semanas_negativas,
     COUNT(*) FILTER (WHERE "COUPON_DISC" < 0) AS descuentos_cupon_negativos,
     COUNT(*) FILTER (WHERE "COUPON_MATCH_DISC" < 0) AS descuentos_adicionales_negativos
-FROM public.transaction_data;
+FROM raw.transaction_data;
 
 -- 4. INTEGRIDAD REFERENCIAL Y CORRESPONDENCIA ENTRE TABLAS
 
@@ -61,8 +61,8 @@ FROM public.transaction_data;
 SELECT
     COUNT(*) AS productos_distintos,
     COUNT(*) FILTER (WHERE p."PRODUCT_ID" IS NULL) AS productos_sin_correspondencia
-FROM (SELECT DISTINCT "PRODUCT_ID" FROM public.transaction_data) AS t
-LEFT JOIN (SELECT DISTINCT "PRODUCT_ID" FROM public.product) AS p
+FROM (SELECT DISTINCT "PRODUCT_ID" FROM raw.transaction_data) AS t
+LEFT JOIN (SELECT DISTINCT "PRODUCT_ID" FROM raw.product) AS p
     ON t."PRODUCT_ID" = p."PRODUCT_ID";
 
 -- 4.2. Comprobar la cobertura de información demográfica de los hogares.
@@ -71,8 +71,8 @@ SELECT
     COUNT(*) AS hogares_distintos,
     COUNT(*) FILTER (WHERE h.household_key IS NOT NULL) AS hogares_con_demografia,
     COUNT(*) FILTER (WHERE h.household_key IS NULL) AS hogares_sin_demografia
-FROM (SELECT DISTINCT household_key FROM public.transaction_data) AS t
-LEFT JOIN (SELECT DISTINCT household_key FROM public.hh_demographic) AS h
+FROM (SELECT DISTINCT household_key FROM raw.transaction_data) AS t
+LEFT JOIN (SELECT DISTINCT household_key FROM raw.hh_demographic) AS h
     ON t.household_key = h.household_key;
 
 -- 4.3. Comprobar correspondencia con CAUSAL_DATA por producto, tienda y semana.
@@ -84,11 +84,11 @@ SELECT
     COUNT(*) FILTER (WHERE c."PRODUCT_ID" IS NULL) AS combinaciones_sin_correspondencia
 FROM (
     SELECT DISTINCT "PRODUCT_ID", "STORE_ID", "WEEK_NO"
-    FROM public.transaction_data
+    FROM raw.transaction_data
 ) AS t
 LEFT JOIN (
     SELECT DISTINCT "PRODUCT_ID", "STORE_ID", "WEEK_NO"
-    FROM public.causal_data
+    FROM raw.causal_data
 ) AS c
     ON t."PRODUCT_ID" = c."PRODUCT_ID"
    AND t."STORE_ID" = c."STORE_ID"
@@ -117,7 +117,7 @@ SELECT
            OR "TRANS_TIME" > 2359
            OR "TRANS_TIME" % 100 > 59
     ) AS horas_invalidas
-FROM public.transaction_data;
+FROM raw.transaction_data;
 
 -- 6. RESULTADOS, CONCLUSIÓN Y DECISIONES PARA EL ETL
 -- La evaluación de calidad de TRANSACTION_DATA queda finalizada

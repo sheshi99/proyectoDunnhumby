@@ -2,7 +2,7 @@ version: 2
 models:
 
 - name: dim_product
-  description: Tabla de productos en Data_warehouse.public.
+  description: Tabla de productos en Data_warehouse.dw.
     Una fila por producto. dim_product_id es el ID propio del warehouse y
     product_id conserva el código original. Consume la limpieza de stg_product
     sin volver a transformar sus etiquetas.
@@ -27,7 +27,7 @@ models:
     description: Tamaño descriptivo; 'not available' si la fuente lo trae vacío.
 
 - name: dim_household
-  description: Dimensión de hogares en Data_warehouse.public. Inserta la vista
+  description: Dimensión de hogares en Data_warehouse.dw. Inserta la vista
     int_household, que reúne hogares de compras, asignaciones a campañas, canjes y
     perfiles demográficos. dim_household_id es el ID propio del warehouse y
     household_id conserva el código original. Un hogar sin perfil tiene

@@ -1,11 +1,11 @@
 -- Materialización de la tabla de hechos de ventas
--- El target warehouse materializa en Data_warehouse.public
+-- El target warehouse materializa en Data_warehouse.dw
 -- otorga permisos de selección al rol rol_data_warehouse.
 -- Conserva sale_detail_id e inserta nuevas líneas mediante su IDENTITY.
 -- Las cuatro llaves son los IDs propios de las dimensiones y no pueden ser nulas.
 -- Al crear la tabla agrega las claves foráneas hacia las cuatro dimensiones.
 
-{{ config(materialized='cambios', identity_column='sale_detail_id', schema='public' if target.name == 'warehouse',
+{{ config(materialized='cambios', identity_column='sale_detail_id', schema='dw' if target.name == 'warehouse',
     not_null_columns=['dim_product_id', 'dim_household_id', 'dim_time_id', 'dim_promotional_context_id'],
     foreign_keys={'dim_product_id': 'dim_product', 'dim_household_id': 'dim_household',
                   'dim_time_id': 'dim_time', 'dim_promotional_context_id': 'dim_promotional_context'}) }}

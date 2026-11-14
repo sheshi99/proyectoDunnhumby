@@ -10,7 +10,7 @@ cargan en `Data_warehouse` (paso 9 del [README](../README.md)) y cómo se valida
 el resultado (paso 10 del [README](../README.md)).
 
 El modelo que carga los hechos es [fact_sales.sql](../models/facts/fact_sales.sql)
-y la tabla está en **`Data_warehouse.public.fact_sales`**. Se carga junto con las
+y la tabla está en **`Data_warehouse.dw.fact_sales`**. Se carga junto con las
 dimensiones, con el comando de la [sección 7](#7-ejecución).
 
 Las medidas y dimensiones permiten elaborar consultas de gerencia, ventas,
@@ -144,9 +144,9 @@ La construcción utiliza los siguientes objetos, cada uno con una responsabilida
 | --- | --- | --- |
 | `stg_transaction_data` | Vista en `dunnhumby_etl.staging`. | Prepara los nombres y tipos de los datos originales de las transacciones. |
 | `int_sales_promotional_context` | Vista en `dunnhumby_etl.staging`. | Conserva las líneas de transacción y agrega información promocional obtenida de las demás vistas limpias. |
-| Las cuatro dimensiones | Tablas en `Data_warehouse.public`. | Describen los productos, hogares, días y contextos promocionales de las ventas. |
+| Las cuatro dimensiones | Tablas en `Data_warehouse.dw`. | Describen los productos, hogares, días y contextos promocionales de las ventas. |
 | `fact_sales.sql` | Archivo en `models/facts/`. | Define la consulta con la que dbt actualiza la tabla de hechos. |
-| `fact_sales` | Tabla en `Data_warehouse.public`. | Almacena el resultado: las líneas de venta con sus medidas e identificadores. |
+| `fact_sales` | Tabla en `Data_warehouse.dw`. | Almacena el resultado: las líneas de venta con sus medidas e identificadores. |
 
 ### Paso 1. Preparar las ventas en staging
 
@@ -281,7 +281,7 @@ Los permisos de lectura vienen de los permisos predeterminados de
 | `identity_column` | ID generado por la tabla y clave primaria: `dim_product_id`, `dim_household_id`, `dim_promotional_context_id` y `sale_detail_id`. Se conserva en las actualizaciones. |
 | `not_null_columns`, `unique_columns` | Restricciones adicionales al crear la tabla; por ejemplo, `dataset_day_number` y `calendar_date` únicos en `dim_time`. |
 | `foreign_keys` | En `fact_sales`, la dimensión a la que apunta cada columna. |
-| `schema='public' if target.name == 'warehouse'` | Con la conexión `warehouse`, las tablas están en `public`. |
+| `schema='dw' if target.name == 'warehouse'` | Con la conexión `warehouse`, las tablas están en `dw`. |
 | `SELECT` | Elige las columnas, sus nombres y sus tipos. `::bigint`, por ejemplo, convierte a entero grande. |
 | `staging_view('stg_product')` | Lee la vista limpia de la primera base. |
 
@@ -332,10 +332,10 @@ Esta validación corresponde al paso 10 del [README](../README.md).
 En pgAdmin, abrir Query Tool conectado a **`Data_warehouse`**:
 
 ```sql
-select * from public.dim_product limit 10;
-select * from public.dim_household limit 10;
-select * from public.dim_time limit 10;
-select * from public.dim_promotional_context limit 10;
+select * from dw.dim_product limit 10;
+select * from dw.dim_household limit 10;
+select * from dw.dim_time limit 10;
+select * from dw.dim_promotional_context limit 10;
 ```
 
 ### Ejecutar las pruebas
@@ -366,7 +366,7 @@ Para ver las ventas en pgAdmin, abrir Query Tool conectado a **`Data_warehouse`*
 ```sql
 -- Mostrar diez líneas de venta para revisar sus columnas.
 SELECT *
-FROM public.fact_sales
+FROM dw.fact_sales
 LIMIT 10;
 ```
 
@@ -374,7 +374,7 @@ Para consultar cuántas líneas quedaron almacenadas, ejecutar en la misma base:
 
 ```sql
 SELECT count(*) AS filas_hechos
-FROM public.fact_sales;
+FROM dw.fact_sales;
 ```
 
 Para comparar el conteo, ejecutar esta otra consulta conectado a

@@ -1,13 +1,13 @@
 -- ============================================================
 -- EVALUACIÓN DE CALIDAD DE DATOS: COUPON_REDEMPT
 -- Proyecto: Data Warehouse Dunnhumby
--- Tabla: public.coupon_redempt
+-- Tabla: raw.coupon_redempt
 -- Las consultas son de solo lectura.
 -- ============================================================
 
 -- Cantidad total de registros analizados
 SELECT COUNT(*) AS total_registros
-FROM public.coupon_redempt;
+FROM raw.coupon_redempt;
 
 -- 1. IDENTIFICACIÓN DE VALORES NULOS
 SELECT
@@ -16,15 +16,15 @@ SELECT
     COUNT(*) FILTER (WHERE "DAY" IS NULL) AS dias_nulos,
     COUNT(*) FILTER (WHERE "COUPON_UPC" IS NULL) AS cupon_upc_nulos,
     COUNT(*) FILTER (WHERE "CAMPAIGN" IS NULL) AS campanas_nulas
-FROM public.coupon_redempt;
+FROM raw.coupon_redempt;
 
 -- 2. IDENTIFICACIÓN DE REGISTROS DUPLICADOS
 -- Se evalúan filas exactamente idénticas en todas sus columnas
 SELECT
-    (SELECT COUNT(*) FROM public.coupon_redempt) AS total_registros,
+    (SELECT COUNT(*) FROM raw.coupon_redempt) AS total_registros,
     COUNT(*) AS registros_unicos,
-    (SELECT COUNT(*) FROM public.coupon_redempt) - COUNT(*) AS registros_duplicados
-FROM (SELECT DISTINCT * FROM public.coupon_redempt) AS datos_unicos;
+    (SELECT COUNT(*) FROM raw.coupon_redempt) - COUNT(*) AS registros_duplicados
+FROM (SELECT DISTINCT * FROM raw.coupon_redempt) AS datos_unicos;
 
 -- 3. IDENTIFICACIÓN DE VALORES NEGATIVOS O CERO
 SELECT
@@ -32,7 +32,7 @@ SELECT
     COUNT(*) FILTER (WHERE "DAY" <= 0) AS dias_invalidos,
     COUNT(*) FILTER (WHERE "COUPON_UPC" <= 0) AS cupones_invalidos,
     COUNT(*) FILTER (WHERE "CAMPAIGN" <= 0) AS campanas_invalidas
-FROM public.coupon_redempt;
+FROM raw.coupon_redempt;
 
 -- 4. INTEGRIDAD REFERENCIAL Y CORRESPONDENCIA ENTRE TABLAS
 
@@ -42,8 +42,8 @@ FROM public.coupon_redempt;
 SELECT
     COUNT(DISTINCT r."COUPON_UPC") AS cupones_redimidos_distintos,
     COUNT(DISTINCT r."COUPON_UPC") FILTER (WHERE c."COUPON_UPC" IS NULL) AS cupones_sin_maestro
-FROM (SELECT DISTINCT "COUPON_UPC" FROM public.coupon_redempt) r
-LEFT JOIN (SELECT DISTINCT "COUPON_UPC" FROM public.coupon) c
+FROM (SELECT DISTINCT "COUPON_UPC" FROM raw.coupon_redempt) r
+LEFT JOIN (SELECT DISTINCT "COUPON_UPC" FROM raw.coupon) c
     ON r."COUPON_UPC" = c."COUPON_UPC";
 
 -- 4.2. Correspondencia con CAMPAIGN_DESC
@@ -53,8 +53,8 @@ LEFT JOIN (SELECT DISTINCT "COUPON_UPC" FROM public.coupon) c
 SELECT
     COUNT(DISTINCT r."CAMPAIGN") AS campanas_distintas,
     COUNT(DISTINCT r."CAMPAIGN") FILTER (WHERE cd."CAMPAIGN" IS NULL) AS campanas_sin_maestro
-FROM (SELECT DISTINCT "CAMPAIGN" FROM public.coupon_redempt) r
-LEFT JOIN (SELECT DISTINCT "CAMPAIGN" FROM public.campaign_desc) cd
+FROM (SELECT DISTINCT "CAMPAIGN" FROM raw.coupon_redempt) r
+LEFT JOIN (SELECT DISTINCT "CAMPAIGN" FROM raw.campaign_desc) cd
     ON r."CAMPAIGN" = cd."CAMPAIGN";
 
 -- 4.3. Cobertura demográfica de los hogares redentores
@@ -64,8 +64,8 @@ SELECT
     COUNT(DISTINCT r.household_key) AS hogares_redentores_distintos,
     COUNT(DISTINCT r.household_key) FILTER (WHERE h.household_key IS NOT NULL) AS hogares_con_demografia,
     COUNT(DISTINCT r.household_key) FILTER (WHERE h.household_key IS NULL) AS hogares_sin_demografia
-FROM (SELECT DISTINCT household_key FROM public.coupon_redempt) r
-LEFT JOIN (SELECT DISTINCT household_key FROM public.hh_demographic) h
+FROM (SELECT DISTINCT household_key FROM raw.coupon_redempt) r
+LEFT JOIN (SELECT DISTINCT household_key FROM raw.hh_demographic) h
     ON r.household_key = h.household_key;
 
 

@@ -1,4 +1,4 @@
-{# Mantiene las copias de staging iguales a las tablas originales de public.
+{# Mantiene las copias de staging iguales a las tablas originales de raw.
    En la primera ejecución copia la tabla completa; en las siguientes aplica solo
    las diferencias: inserta las filas nuevas y borra las que ya no están en el
    origen. Una fila modificada aparece como su versión anterior (se borra) y su

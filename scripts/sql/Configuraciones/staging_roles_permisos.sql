@@ -11,12 +11,13 @@ END $$;
 -- Verificar la base de datos y el usuario actual.
 SELECT current_database() AS base_datos, current_user AS usuario_actual;
 
--- Crear el esquema de trabajo sin modificar los originales en public.
+-- Crear los esquemas de trabajo. raw guarda los CSV originales; staging, las copias y vistas.
+CREATE SCHEMA IF NOT EXISTS raw;
 CREATE SCHEMA IF NOT EXISTS staging;
 
 SELECT schema_name
 FROM information_schema.schemata
-WHERE schema_name = 'staging';
+WHERE schema_name IN ('raw', 'staging');
 
 -- Crear el rol solo si no existe, para poder repetir el script.
 DO $$ BEGIN
@@ -48,6 +49,11 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA staging TO rol_stag
 ALTER DEFAULT PRIVILEGES IN SCHEMA staging
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO rol_staging;
 
+-- raw la crea y la llena la carga CSV de dbt; el rol solo la consulta.
+GRANT USAGE ON SCHEMA raw TO rol_staging;
+GRANT SELECT ON ALL TABLES IN SCHEMA raw TO rol_staging;
+ALTER DEFAULT PRIVILEGES IN SCHEMA raw GRANT SELECT ON TABLES TO rol_staging;
+
 -- Asignar el rol al usuario conectado, sin nombres fijos.
 DO $$ BEGIN
     EXECUTE format('GRANT rol_staging TO %I', current_user);
@@ -66,7 +72,7 @@ COMMIT;
 ==========================================================
  CONFIGURACIÓN DE STAGING - PROYECTO DUNNHUMBY
 ==========================================================
-La base dunnhumby_etl conserva los datos originales en public.
+La base dunnhumby_etl conserva los datos originales en raw (public no se usa).
 El esquema staging contiene las copias de trabajo y las vistas
 limpias que preparan los datos provenientes de las ocho tablas
 originales de Dunnhumby.
@@ -81,6 +87,6 @@ La configuración del warehouse se ejecuta por separado en la
 base Data_warehouse con warehouse_roles_permisos.sql.
 
 Esta configuración prepara la base de trabajo para el ETL
-sin modificar las tablas originales de public.
+sin modificar las tablas originales de raw.
 ==========================================================
 */

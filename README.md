@@ -1,6 +1,8 @@
 # Proyecto Dunnhumby
 
-Proyecto ETL con PostgreSQL y dbt. Los datos originales del dataset Dunnhumby se
+Proyecto de integración con PostgreSQL y dbt. Una macro dbt ejecuta `COPY` para
+cargar los CSV en la base de origen; los modelos dbt transforman los datos y
+construyen el almacén. Los datos originales del dataset Dunnhumby se
 conservan en una base de trabajo y los modelos dbt construyen un modelo estrella
 (cuatro dimensiones y una tabla de hechos) en otra base. Un job de pgAgent
 mantiene el warehouse actualizado cada madrugada, a las 2:00 a. m.
@@ -9,12 +11,16 @@ mantiene el warehouse actualizado cada madrugada, a las 2:00 a. m.
 
 | Base de datos | Esquema | Contenido |
 | --- | --- | --- |
-| `dunnhumby_etl` | `public` | Ocho tablas originales cargadas desde los CSV. |
+| `dunnhumby_etl` | `raw` | Ocho tablas originales cargadas desde los CSV. |
 | `dunnhumby_etl` | `staging` | Copias de trabajo, ocho vistas limpias `stg_` y tres vistas intermedias `int_` (hogares, calendario y contexto promocional). |
-| `Data_warehouse` | `public` | Cuatro dimensiones y la tabla de hechos `fact_sales`. |
+| `Data_warehouse` | `dw` | Cuatro dimensiones y la tabla de hechos `fact_sales`. |
+
+`public` no se usa para datos. Si las bases ya tenían tablas en `public` del flujo anterior,
+ejecutar una vez `scripts/sql/Configuraciones/migrar_esquemas.sql` (mueve las tablas sin copiarlas)
+y volver a correr los dos scripts de roles y permisos.
 
 ```text
-CSV → public → copias en staging → vistas stg_ → dimensiones y hechos → job diario 2:00 a. m.
+CSV → raw → copias en staging → vistas stg_ → dimensiones y hechos → job diario 2:00 a. m.
 ```
 
 ## Cómo usar esta guía
@@ -28,7 +34,8 @@ Antes de empezar:
 
 - Los comandos de terminal se ejecutan en PowerShell desde la raíz del repositorio.
 - Usar el mismo usuario de PostgreSQL en todos los pasos (carga, permisos, `.env`
-  y `psql`). Ese usuario debe poder crear bases, roles, extensiones y tablas.
+  y `psql`). Ese usuario debe ser superusuario de PostgreSQL (como `postgres`):
+  debe poder crear bases, roles, extensiones y tablas, y ejecutar `COPY` desde archivos.
 - Algunos comandos están divididos en varias líneas con el acento grave (`` ` ``)
   de PowerShell. Se copia el bloque completo; no dejar espacios después de ese carácter.
 - Las consultas SQL se ejecutan en **pgAdmin → Query Tool**, conectado a la base
@@ -39,16 +46,19 @@ Antes de empezar:
 ### 1. Preparar el entorno y los CSV
 
 Se necesitan PostgreSQL, pgAdmin, `psql` en la terminal y Python. Se crea el
-entorno virtual `venv`, se instalan las dependencias de dbt y del cargador, y se
+entorno virtual `venv`, se instalan las dependencias de dbt, y se
 colocan los ocho CSV en `database/` (no están en Git).
 
 Guía: [Preparación de las bases y carga de datos](docs/instrucciones_de_carga.md), sección 1.
 
 ### 2. Crear las bases y cargar los datos originales
 
-Se crean las bases `dunnhumby_etl` y `Data_warehouse`, y el script
-`cargar_bd.py` carga los CSV en `dunnhumby_etl.public`.
-**La carga reemplaza las tablas de origen: no repetirla si ya están cargadas.**
+Se crean las bases `dunnhumby_etl` y `Data_warehouse`, se configuran las conexiones
+dbt y la macro `cargar_csv` carga los CSV en `dunnhumby_etl.raw` mediante
+`COPY`, leyendo directamente la carpeta `database/` (dbt la encuentra sola).
+Una vez por equipo hay que dar al servicio PostgreSQL permiso de lectura sobre
+esa carpeta: `icacls database /grant "*S-1-5-20:(OI)(CI)RX"`.
+**La macro no reemplaza tablas existentes por defecto.** Ver [carga CSV con dbt](docs/carga_csv_dbt.md).
 
 Guía: [Preparación de las bases y carga de datos](docs/instrucciones_de_carga.md), secciones 2 y 3.
 
@@ -83,8 +93,8 @@ Guía: [Inicialización de dbt](docs/inicializacion_dbt.md), sección 5.
 
 ### 7. Copiar las tablas originales a staging
 
-dbt copia las ocho tablas de `public` a `staging`, donde trabaja, y se
-validan los requisitos. `public` queda intacto.
+dbt copia las ocho tablas de `raw` a `staging`, donde trabaja, y se
+validan los requisitos. `raw` queda intacto.
 
 Guía: [Capa staging](docs/capa_staging.md), sección 1.
 
@@ -116,9 +126,9 @@ Guía: [Modelo estrella](docs/guia_modelo_estrella_dbt.md), sección 8 (validaci
 ### 11. Activar la actualización automática
 
 El job **`Dunnhumby_ETL_madrugada`** de pgAgent se ejecuta todos los días a las
-2:00 a. m.: sincroniza las copias de staging con `public` y luego compara staging
+2:00 a. m.: sincroniza las copias de staging con `raw` y luego compara staging
 con el warehouse, aplicando solo las diferencias. Los datos nuevos se cargan en
-`public`.
+`raw`.
 
 Guía: [Ejecución y configuración del job ETL](docs/job_etl.md).
 
@@ -126,6 +136,50 @@ Guía: [Ejecución y configuración del job ETL](docs/job_etl.md).
   revisar los resultados.
 - Secciones 1 a 3 y 6: componentes, requisitos y pasos para instalar pgAgent en
   otro equipo o reconfigurarlo.
+
+## Reconstruir las tablas desde cero
+
+Este procedimiento queda preparado para ejecutarlo cuando se decida reconstruir.
+Conservar los ocho CSV de `database/`, `.env`, `profiles.yml`, las dos bases
+`dunnhumby_etl` y `Data_warehouse`, y sus esquemas `raw`, `staging` y `dw`. Si se eliminan también
+las bases o esos esquemas, primero deben crearse de nuevo según la guía de carga.
+
+Si se conservaron los roles y la configuración de `dblink`, usar directamente
+`dbt build`. Con `venv` activado y desde la raíz del proyecto:
+
+```powershell
+python -m dotenv -f .env run -- dbt build --profiles-dir . --target dev --select path:models/sincronizacion path:models/staging path:models/intermediate --vars "{cargar_csv: true}"
+
+python -m dotenv -f .env run -- dbt build --profiles-dir . --target warehouse --select path:models/dimensions path:models/facts
+```
+
+El primer build carga los ocho CSV en `raw` mediante un hook de inicio y
+después construye staging y sus vistas. El segundo construye las dimensiones y
+los hechos. Ejecutar el segundo solo si el primero termina correctamente.
+Los CSV se leen de la carpeta `database/` del proyecto; antes, una vez por
+equipo, dar permiso de lectura al servicio PostgreSQL
+(`icacls database /grant "*S-1-5-20:(OI)(CI)RX"`). En ejecuciones posteriores omitir `--vars "{cargar_csv: true}"`:
+sin esa variable no se cargan los CSV ni se reemplazan las tablas originales.
+
+Como alternativa, las etapas pueden ejecutarse por separado (no repetir la carga
+si ya se usó el primer build con `cargar_csv: true`):
+
+1. Ejecutar `dbt run-operation cargar_csv --target dev`, con las variables de
+   `.env` y `--profiles-dir .`: carga las ocho tablas originales de `database/`
+   en `dunnhumby_etl.raw`.
+2. Configurar los roles con `staging_roles_permisos.sql` y
+   `warehouse_roles_permisos.sql`, y la lectura entre bases con
+   `conexion_warehouse.sql`, como indican las guías. Estos scripts permiten
+   restablecer la configuración si se borró.
+3. Ejecutar `dbt build --target dev --select path:models/sincronizacion
+   path:models/staging path:models/intermediate`, con las variables de `.env`
+   y `--profiles-dir .`: crea las copias de staging y las vistas.
+4. Ejecutar `dbt build --target warehouse --select path:models/dimensions
+   path:models/facts`, con las mismas variables y perfil: crea las dimensiones
+   y `fact_sales`, y ejecuta las pruebas dbt.
+
+No usar `--full-refresh`: el modelo crea las tablas cuando no existen.
+La carga inicial de CSV no se ejecuta automáticamente por el job diario.
 
 ## Estructura del proyecto
 
@@ -138,7 +192,7 @@ Guía: [Ejecución y configuración del job ETL](docs/job_etl.md).
 | `scripts/registrar_pgagent.ps1` | Registro del servicio y del job en pgAgent. |
 | `scripts/ejecutar_dbt_pgagent.ps1` | Lanzador del job: dbt, limpieza de dimensiones y logs. |
 | `models/sources/` | Declaraciones de las tablas que dbt usa como entrada. |
-| `models/sincronizacion/` | Copia y sincronización de las tablas de `public` en `staging`. |
+| `models/sincronizacion/` | Copia y sincronización de las tablas de `raw` en `staging`. |
 | `models/staging/` | Modelos de las vistas limpias. |
 | `models/intermediate/` | Preparación de hogares (`int_household`), calendario (`int_time`) y contexto promocional de las ventas (`int_sales_promotional_context`). |
 | `models/dimensions/` | Modelos de las cuatro dimensiones. |

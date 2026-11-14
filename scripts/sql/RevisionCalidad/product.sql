@@ -1,18 +1,18 @@
 -- ============================================================
 -- EVALUACIÓN DE CALIDAD DE DATOS: PRODUCT
 -- Proyecto: Data Warehouse Dunnhumby
--- Tabla: public.product
+-- Tabla: raw.product
 -- Las consultas son de solo lectura; no modifican los datos.
 -- ============================================================
 
 
 -- 0. OBSERVACIÓN DE LA INFORMACIÓN
-SELECT * FROM public.product;
+SELECT * FROM raw.product;
 
 
 -- 0.1. CANTIDAD TOTAL DE REGISTROS
 SELECT COUNT(*) AS total_registros
-FROM public.product;
+FROM raw.product;
 
 
 -- 1. IDENTIFICACIÓN DE VALORES NULOS
@@ -40,7 +40,7 @@ SELECT
     COUNT(*) FILTER (
         WHERE "CURR_SIZE_OF_PRODUCT" IS NULL
     ) AS tamanos_nulos
-FROM public.product;
+FROM raw.product;
 
 
 -- 1.1. IDENTIFICACIÓN DE TEXTOS VACÍOS
@@ -61,20 +61,20 @@ SELECT
     COUNT(*) FILTER (
         WHERE TRIM("CURR_SIZE_OF_PRODUCT") = ''
     ) AS tamanos_vacios
-FROM public.product;
+FROM raw.product;
 
 
 -- 2. IDENTIFICACIÓN DE REGISTROS DUPLICADOS
 -- Se cuentan las filas completamente idénticas.
 -- registros_duplicados indica las filas adicionales a las únicas.
 SELECT
-    (SELECT COUNT(*) FROM public.product) AS total_registros,
+    (SELECT COUNT(*) FROM raw.product) AS total_registros,
     COUNT(*) AS registros_unicos,
-    (SELECT COUNT(*) FROM public.product)
+    (SELECT COUNT(*) FROM raw.product)
         - COUNT(*) AS registros_duplicados
 FROM (
     SELECT DISTINCT *
-    FROM public.product
+    FROM raw.product
 ) AS datos_unicos;
 
 
@@ -84,7 +84,7 @@ FROM (
 SELECT
     "PRODUCT_ID",
     COUNT(*) AS cantidad_registros
-FROM public.product
+FROM raw.product
 WHERE "PRODUCT_ID" IS NOT NULL
 GROUP BY "PRODUCT_ID"
 HAVING COUNT(*) > 1
@@ -108,7 +108,7 @@ SELECT
     COUNT(*) FILTER (
         WHERE "MANUFACTURER" = 0
     ) AS fabricantes_cero
-FROM public.product;
+FROM raw.product;
 
 
 -- 4. VERIFICACIÓN DE INTEGRIDAD REFERENCIAL
@@ -128,12 +128,12 @@ SELECT
     ) AS productos_sin_correspondencia
 FROM (
     SELECT DISTINCT "PRODUCT_ID"
-    FROM public.transaction_data
+    FROM raw.transaction_data
     WHERE "PRODUCT_ID" IS NOT NULL
 ) AS t
 LEFT JOIN (
     SELECT DISTINCT "PRODUCT_ID"
-    FROM public.product
+    FROM raw.product
     WHERE "PRODUCT_ID" IS NOT NULL
 ) AS p
     ON t."PRODUCT_ID" = p."PRODUCT_ID";
@@ -150,12 +150,12 @@ SELECT
     ) AS productos_sin_correspondencia
 FROM (
     SELECT DISTINCT "PRODUCT_ID"
-    FROM public.causal_data
+    FROM raw.causal_data
     WHERE "PRODUCT_ID" IS NOT NULL
 ) AS c
 LEFT JOIN (
     SELECT DISTINCT "PRODUCT_ID"
-    FROM public.product
+    FROM raw.product
     WHERE "PRODUCT_ID" IS NOT NULL
 ) AS p
     ON c."PRODUCT_ID" = p."PRODUCT_ID";
@@ -172,12 +172,12 @@ SELECT
     ) AS productos_sin_correspondencia
 FROM (
     SELECT DISTINCT "PRODUCT_ID"
-    FROM public.coupon
+    FROM raw.coupon
     WHERE "PRODUCT_ID" IS NOT NULL
 ) AS c
 LEFT JOIN (
     SELECT DISTINCT "PRODUCT_ID"
-    FROM public.product
+    FROM raw.product
     WHERE "PRODUCT_ID" IS NOT NULL
 ) AS p
     ON c."PRODUCT_ID" = p."PRODUCT_ID";
@@ -203,7 +203,7 @@ SELECT
     COUNT(*) FILTER (
         WHERE "CURR_SIZE_OF_PRODUCT" <> TRIM("CURR_SIZE_OF_PRODUCT")
     ) AS tamanos_con_espacios
-FROM public.product;
+FROM raw.product;
 
 
 -- 5.2. REVISIÓN DE CATEGORÍAS DE MARCA
@@ -212,7 +212,7 @@ FROM public.product;
 SELECT
     "BRAND",
     COUNT(*) AS total_registros
-FROM public.product
+FROM raw.product
 GROUP BY "BRAND"
 ORDER BY total_registros DESC;
 
@@ -229,7 +229,7 @@ SELECT
         WHERE UPPER(TRIM("SUB_COMMODITY_DESC"))
             = 'NO SUBCOMMODITY DESCRIPTION'
     ) AS sin_subdescripcion
-FROM public.product;
+FROM raw.product;
 
 
 -- 5.4. DIFERENCIAS DE ESCRITURA EN LAS CATEGORÍAS
@@ -243,7 +243,7 @@ SELECT
     STRING_AGG(
         DISTINCT "DEPARTMENT", ' | '
     ) AS variantes
-FROM public.product
+FROM raw.product
 WHERE TRIM("DEPARTMENT") <> ''
 GROUP BY UPPER(TRIM("DEPARTMENT"))
 HAVING COUNT(DISTINCT "DEPARTMENT") > 1
@@ -255,7 +255,7 @@ SELECT
     UPPER(TRIM("BRAND")),
     COUNT(DISTINCT "BRAND"),
     STRING_AGG(DISTINCT "BRAND", ' | ')
-FROM public.product
+FROM raw.product
 WHERE TRIM("BRAND") <> ''
 GROUP BY UPPER(TRIM("BRAND"))
 HAVING COUNT(DISTINCT "BRAND") > 1
@@ -267,7 +267,7 @@ SELECT
     UPPER(TRIM("COMMODITY_DESC")),
     COUNT(DISTINCT "COMMODITY_DESC"),
     STRING_AGG(DISTINCT "COMMODITY_DESC", ' | ')
-FROM public.product
+FROM raw.product
 WHERE TRIM("COMMODITY_DESC") <> ''
 GROUP BY UPPER(TRIM("COMMODITY_DESC"))
 HAVING COUNT(DISTINCT "COMMODITY_DESC") > 1
@@ -279,7 +279,7 @@ SELECT
     UPPER(TRIM("SUB_COMMODITY_DESC")),
     COUNT(DISTINCT "SUB_COMMODITY_DESC"),
     STRING_AGG(DISTINCT "SUB_COMMODITY_DESC", ' | ')
-FROM public.product
+FROM raw.product
 WHERE TRIM("SUB_COMMODITY_DESC") <> ''
 GROUP BY UPPER(TRIM("SUB_COMMODITY_DESC"))
 HAVING COUNT(DISTINCT "SUB_COMMODITY_DESC") > 1

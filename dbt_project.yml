@@ -6,6 +6,10 @@ profile: dunnhumby
 
 model-paths: ["models"]
 
+# Solo carga CSV cuando se solicita expresamente en dbt build --target dev.
+on-run-start:
+  - "{{ cargar_csv_al_iniciar() }}"
+
 clean-targets:
   - target
   - dbt_packages

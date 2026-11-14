@@ -1,4 +1,4 @@
-# Es el archivo que llama pgAgent. Sincroniza public con staging y ejecuta los modelos y pruebas dbt;
+# Es el archivo que llama pgAgent. Sincroniza raw con staging y ejecuta los modelos y pruebas dbt;
 # después llama a la limpieza de dimensiones. Evita dos ejecuciones 
 # simultáneas y escribe los logs.
 
@@ -38,7 +38,7 @@ try {
             Invoke-JobDbt -DbtArguments @('debug','--target','dev')
             Invoke-JobDbt -DbtArguments @('debug','--target','warehouse')
         } else {
-            # Primero lleva a staging los cambios de public; si falla, el warehouse no se toca.
+            # Primero lleva a staging los cambios de raw; si falla, el warehouse no se toca.
             Invoke-JobDbt -DbtArguments @('build','--target','dev','--select','path:models/sincronizacion','path:models/staging','path:models/intermediate')
             Invoke-JobDbt -DbtArguments @('build','--target','warehouse','--select','path:models/dimensions','path:models/facts')
             Invoke-JobDbt -DbtArguments @('run-operation','limpiar_dimensiones','--target','warehouse')
