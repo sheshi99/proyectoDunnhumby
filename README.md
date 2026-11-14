@@ -132,6 +132,7 @@ Guía: [Ejecución y configuración del job ETL](docs/job_etl.md).
 | Carpeta o archivo | Contenido |
 | --- | --- |
 | `database/` | CSV locales, excluidos de Git. |
+| `tablas_dinamicas/` | Excel con las tablas dinámicas por *stakeholder*. Se excluye de Git por su tamaño (unos 79 MB); está en [Google Drive](https://drive.google.com/drive/folders/1-Cy0J2TJWu1wWaHiMbO0P2ThxR4E4gZT?usp=drive_link). Descargarlo y abrirlo con Excel de escritorio. |
 | `scripts/cargar_bd.py` | Carga original desde CSV a PostgreSQL. |
 | `scripts/sql/` | Configuración, revisión de calidad, copia y validación de staging. |
 | `scripts/preparar_pgagent.ps1` | Comprobación y generación de los comandos del job. |
