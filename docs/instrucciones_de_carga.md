@@ -22,10 +22,10 @@ Requisitos: PostgreSQL activo, pgAdmin, `psql` disponible en la terminal y Pytho
    .\venv\Scripts\Activate.ps1
 
    python -m pip install -r requirements-dbt.txt
-   python -m pip install pandas psycopg2-binary sqlalchemy
    ```
 
-   El primer grupo corresponde a dbt; el segundo, al cargador de CSV.
+   Estas dependencias incluyen dbt, el adaptador PostgreSQL y dotenv.
+   La nueva carga no necesita pandas ni SQLAlchemy.
    Si PowerShell bloquea `Activate.ps1` o Python muestra errores de permisos,
    abrir VS Code como administrador y repetir el comando.
 
@@ -48,20 +48,42 @@ CREATE DATABASE "Data_warehouse";
 Las comillas conservan el nombre exacto `Data_warehouse`, que usa la conexión de
 dbt. Al terminar, ambas bases deben aparecer en pgAdmin.
 
-## 3. Cargar los CSV
+## 3. Cargar los CSV mediante dbt
 
-Revisar en [cargar_bd.py](../scripts/cargar_bd.py) el usuario, host, puerto y
-base. Por defecto usa `postgres`, `localhost:5432` y `dunnhumby_etl`. La
-contraseña se pide en la terminal y no se escribe en el código.
+Antes de cargar, configurar `.env` y `profiles.yml` y comprobar la conexión
+`dev`, siguiendo las secciones 1 a 4 de [inicializacion_dbt.md](inicializacion_dbt.md).
+No ejecutar todavía su sección de `dblink`.
 
-```powershell
-python scripts/cargar_bd.py
-```
+La macro [cargar_csv.sql](../macros/cargar_csv.sql) usa `COPY` de PostgreSQL para
+leer los ocho CSV de la carpeta `database/` del proyecto; la encuentra sola.
+
+1. Una vez por equipo, dar al servicio PostgreSQL permiso de lectura sobre
+   `database/` (desde la raíz del proyecto, en PowerShell):
+
+   ```powershell
+   icacls database /grant "*S-1-5-20:(OI)(CI)RX"
+   ```
+
+2. Cargar los CSV (con `venv` activado). El usuario de `.env` debe ser
+   superusuario de PostgreSQL, porque `COPY` desde archivos lo exige. Solo carga `public`; no construye modelos:
+
+   ```powershell
+   python -m dotenv -f .env run -- dbt run-operation cargar_csv --profiles-dir . --target dev
+   ```
+
+   Para solo comprobar los archivos, sin cargar: agregar `--args "{solo_validar: true}"`.
+
+Si los roles de staging ya están configurados (por ejemplo, al reconstruir), la
+carga también puede hacerse dentro del primer `dbt build` con
+`--vars "{cargar_csv: true}"`; ver [carga CSV con dbt](carga_csv_dbt.md#2-cargar-los-csv).
 
 **Resultado esperado:** ocho tablas con sus registros en `dunnhumby_etl.public`.
+Si ya existen, la macro se detiene sin sustituirlas.
 
-> **Importante:** la carga reemplaza las tablas de `public`. Si ya están cargadas,
-> no repetir este paso.
+La guía [carga CSV con dbt](carga_csv_dbt.md) explica los requisitos, las
+protecciones, las rutas con tildes y cómo volver atrás.
+Después, continuar con las secciones 4 y 5 de esta guía y configurar `dblink`
+según la sección 5 de inicialización de dbt.
 
 ## 4. Revisar la calidad de los datos
 
