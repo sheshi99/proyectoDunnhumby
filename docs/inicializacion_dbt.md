@@ -1,7 +1,9 @@
 # Inicialización de dbt con PostgreSQL
 
 Esta guía cubre los pasos 5 y 6 del [README](../README.md): configurar las
-conexiones de dbt y la lectura entre las dos bases. Requiere el entorno virtual
+conexiones de dbt y la lectura entre las dos bases. Sus secciones 1 a 4 también
+se realizan antes de la carga inicial mediante la macro `cargar_csv`.
+Requiere el entorno virtual
 activo y las dependencias de `requirements-dbt.txt` instaladas
 ([preparación del entorno](instrucciones_de_carga.md)).
 
@@ -78,6 +80,10 @@ dbt. Cada conexión debe terminar con:
 Connection test: [OK connection ok]
 All checks passed!
 ```
+
+Si se está instalando desde cero, volver ahora al paso 3 de
+[instrucciones_de_carga.md](instrucciones_de_carga.md#3-cargar-los-csv-mediante-dbt)
+para cargar los CSV y preparar los permisos. Después continuar con la sección 5.
 
 ## 5. Configurar la lectura entre las dos bases
 
