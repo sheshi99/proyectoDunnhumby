@@ -1,18 +1,18 @@
 -- ============================================================
 -- EVALUACIÓN DE CALIDAD DE DATOS: COUPON
 -- Proyecto: Data Warehouse Dunnhumby
--- Tabla: public.coupon
+-- Tabla: raw.coupon
 -- Las consultas son de solo lectura; no modifican los datos.
 -- ============================================================
 
 
 -- 0. OBSERVACIÓN DE LA INFORMACIÓN
-SELECT * FROM public.coupon;
+SELECT * FROM raw.coupon;
 
 
 -- 0.1. CANTIDAD TOTAL DE REGISTROS
 SELECT COUNT(*) AS total_registros
-FROM public.coupon;
+FROM raw.coupon;
 
 
 -- 1. IDENTIFICACIÓN DE VALORES NULOS
@@ -28,20 +28,20 @@ SELECT
     COUNT(*) FILTER (
         WHERE "CAMPAIGN" IS NULL
     ) AS campanas_nulas
-FROM public.coupon;
+FROM raw.coupon;
 
 
 -- 2. IDENTIFICACIÓN DE REGISTROS DUPLICADOS
 -- Se cuentan filas idénticas en las tres columnas.
 -- Repetir solo COUPON_UPC no significa que exista un duplicado.
 SELECT
-    (SELECT COUNT(*) FROM public.coupon) AS total_registros,
+    (SELECT COUNT(*) FROM raw.coupon) AS total_registros,
     COUNT(*) AS registros_unicos,
-    (SELECT COUNT(*) FROM public.coupon)
+    (SELECT COUNT(*) FROM raw.coupon)
         - COUNT(*) AS registros_duplicados
 FROM (
     SELECT DISTINCT "COUPON_UPC", "PRODUCT_ID", "CAMPAIGN"
-    FROM public.coupon
+    FROM raw.coupon
 ) AS datos_unicos;
 
 
@@ -54,7 +54,7 @@ SELECT
     MAX(cantidad_registros) AS maximas_repeticiones
 FROM (
     SELECT COUNT(*) AS cantidad_registros
-    FROM public.coupon
+    FROM raw.coupon
     GROUP BY "COUPON_UPC", "PRODUCT_ID", "CAMPAIGN"
     HAVING COUNT(*) > 1
 ) AS duplicados;
@@ -81,7 +81,7 @@ SELECT
     COUNT(*) FILTER (
         WHERE "CAMPAIGN" = 0
     ) AS campanas_cero
-FROM public.coupon;
+FROM raw.coupon;
 
 
 -- 4. VERIFICACIÓN DE INTEGRIDAD REFERENCIAL
@@ -99,12 +99,12 @@ SELECT
     ) AS productos_sin_correspondencia
 FROM (
     SELECT DISTINCT "PRODUCT_ID"
-    FROM public.coupon
+    FROM raw.coupon
     WHERE "PRODUCT_ID" IS NOT NULL
 ) AS c
 LEFT JOIN (
     SELECT DISTINCT "PRODUCT_ID"
-    FROM public.product
+    FROM raw.product
     WHERE "PRODUCT_ID" IS NOT NULL
 ) AS p
     ON c."PRODUCT_ID" = p."PRODUCT_ID";
@@ -123,12 +123,12 @@ SELECT
     ) AS campanas_sin_correspondencia
 FROM (
     SELECT DISTINCT "CAMPAIGN"
-    FROM public.coupon
+    FROM raw.coupon
     WHERE "CAMPAIGN" IS NOT NULL
 ) AS c
 LEFT JOIN (
     SELECT DISTINCT "CAMPAIGN"
-    FROM public.campaign_desc
+    FROM raw.campaign_desc
     WHERE "CAMPAIGN" IS NOT NULL
 ) AS cd
     ON c."CAMPAIGN" = cd."CAMPAIGN";
@@ -149,13 +149,13 @@ SELECT
     ) AS pares_sin_correspondencia
 FROM (
     SELECT DISTINCT "COUPON_UPC", "CAMPAIGN"
-    FROM public.coupon_redempt
+    FROM raw.coupon_redempt
     WHERE "COUPON_UPC" IS NOT NULL
       AND "CAMPAIGN" IS NOT NULL
 ) AS r
 LEFT JOIN (
     SELECT DISTINCT "COUPON_UPC", "CAMPAIGN"
-    FROM public.coupon
+    FROM raw.coupon
     WHERE "COUPON_UPC" IS NOT NULL
       AND "CAMPAIGN" IS NOT NULL
 ) AS c
@@ -174,7 +174,7 @@ FROM (
     SELECT
         "COUPON_UPC",
         COUNT(DISTINCT "CAMPAIGN") AS cantidad_campanas
-    FROM public.coupon
+    FROM raw.coupon
     WHERE "COUPON_UPC" IS NOT NULL
     GROUP BY "COUPON_UPC"
     HAVING COUNT(DISTINCT "CAMPAIGN") > 1
@@ -201,7 +201,7 @@ FROM (
         "COUPON_UPC",
         "CAMPAIGN",
         COUNT(DISTINCT "PRODUCT_ID") AS productos_asociados
-    FROM public.coupon
+    FROM raw.coupon
     GROUP BY "COUPON_UPC", "CAMPAIGN"
 ) AS asociaciones;
 

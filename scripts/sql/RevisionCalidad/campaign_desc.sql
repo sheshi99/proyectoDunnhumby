@@ -2,18 +2,18 @@
 -- ============================================================
 -- EVALUACIÓN DE CALIDAD DE DATOS: CAMPAIGN_DESC
 -- Proyecto: Data Warehouse Dunnhumby
--- Tabla: public.campaign_desc
+-- Tabla: raw.campaign_desc
 -- Las consultas son de solo lectura.
 -- ============================================================
 
 
 --- Observar la información de la tabla 
 
-SELECT * FROM public.campaign_desc;
+SELECT * FROM raw.campaign_desc;
 
 -- Cantidad total de registros analizados
 SELECT COUNT(*) AS total_registros
-FROM public.campaign_desc; 
+FROM raw.campaign_desc; 
 
 -- 1. IDENTIFICACIÓN DE VALORES NULOS Y VACÍOS
 SELECT
@@ -23,7 +23,7 @@ SELECT
     COUNT(*) FILTER (WHERE TRIM("DESCRIPTION") = '') AS descripcion_vacia,
     COUNT(*) FILTER (WHERE "START_DAY" IS NULL) AS dia_inicio_nulo,
     COUNT(*) FILTER (WHERE "END_DAY" IS NULL) AS dia_fin_nulo
-FROM public.campaign_desc;
+FROM raw.campaign_desc;
 
 -- 2. IDENTIFICACIÓN DE REGISTROS DUPLICADOS
 -- Se valida la unicidad de la llave primaria CAMPAIGN
@@ -31,7 +31,7 @@ SELECT
     COUNT(*) AS total_registros,
     COUNT(DISTINCT "CAMPAIGN") AS campanas_unicas,
     COUNT(*) - COUNT(DISTINCT "CAMPAIGN") AS campanas_duplicadas
-FROM public.campaign_desc;
+FROM raw.campaign_desc;
 
 -- 3. IDENTIFICACIÓN DE VALORES NEGATIVOS O INCONSISTENCIAS LÓGICAS
 SELECT
@@ -39,7 +39,7 @@ SELECT
     COUNT(*) FILTER (WHERE "START_DAY" < 0) AS dia_inicio_negativo,
     COUNT(*) FILTER (WHERE "END_DAY" < 0) AS dia_fin_negativo,
     COUNT(*) FILTER (WHERE "START_DAY" > "END_DAY") AS inicio_mayor_que_fin
-FROM public.campaign_desc;
+FROM raw.campaign_desc;
 
 
 -- 4. VERIFICACIÓN DE INTEGRIDAD CON CAMPAIGN_TABLE
@@ -48,8 +48,8 @@ FROM public.campaign_desc;
 SELECT
     COUNT(DISTINCT cd."CAMPAIGN") AS campanas_en_desc,
     COUNT(DISTINCT ct."CAMPAIGN") FILTER (WHERE ct."CAMPAIGN" IS NOT NULL) AS campanas_con_hogares_asignados
-FROM public.campaign_desc cd
-LEFT JOIN public.campaign_table ct ON cd."CAMPAIGN" = ct."CAMPAIGN";
+FROM raw.campaign_desc cd
+LEFT JOIN raw.campaign_table ct ON cd."CAMPAIGN" = ct."CAMPAIGN";
 
 
 -- ============================================================

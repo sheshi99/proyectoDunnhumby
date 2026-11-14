@@ -11,10 +11,12 @@ END $$;
 -- Verificar la base de datos y el usuario actual.
 SELECT current_database() AS base_datos, current_user AS usuario_actual;
 
--- Las dimensiones y hechos se materializan en el esquema public existente.
+-- Las dimensiones y hechos se materializan en el esquema dw (public no se usa).
+CREATE SCHEMA IF NOT EXISTS dw;
+
 SELECT schema_name
 FROM information_schema.schemata
-WHERE schema_name = 'public';
+WHERE schema_name = 'dw';
 
 -- Crear el rol solo si no existe, para poder repetir el script.
 DO $$ BEGIN
@@ -36,14 +38,14 @@ END $$;
 GRANT CONNECT ON DATABASE "Data_warehouse" TO rol_data_warehouse;
 
 -- Permitir usar el esquema que contiene las dimensiones y hechos.
-GRANT USAGE ON SCHEMA public TO rol_data_warehouse;
+GRANT USAGE ON SCHEMA dw TO rol_data_warehouse;
 
 -- Permisos de lectura sobre las tablas existentes.
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO rol_data_warehouse;
+GRANT SELECT ON ALL TABLES IN SCHEMA dw TO rol_data_warehouse;
 
 -- Permisos futuros para tablas creadas por el usuario conectado.
 -- Si otro usuario crea las tablas dbt, configurar también sus permisos predeterminados.
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
+ALTER DEFAULT PRIVILEGES IN SCHEMA dw
     GRANT SELECT ON TABLES TO rol_data_warehouse;
 
 -- Asignar el rol al usuario conectado, sin nombres fijos.
@@ -60,7 +62,7 @@ WHERE u.rolname = current_user AND r.rolname = 'rol_data_warehouse';
 -- Los dos resultados deben devolver true.
 SELECT
     has_database_privilege('rol_data_warehouse', current_database(), 'CONNECT') AS permiso_conexion,
-    has_schema_privilege('rol_data_warehouse', 'public', 'USAGE') AS permiso_warehouse;
+    has_schema_privilege('rol_data_warehouse', 'dw', 'USAGE') AS permiso_warehouse;
 
 COMMIT;
 
@@ -69,7 +71,7 @@ COMMIT;
  CONFIGURACIÓN DEL WAREHOUSE - PROYECTO DUNNHUMBY
 ==========================================================
 La base Data_warehouse almacena el modelo dimensional de
-estrella en public: cuatro dimensiones y la tabla fact_sales.
+estrella en dw: cuatro dimensiones y la tabla fact_sales.
 Los modelos dbt crean estas tablas a partir de las vistas
 limpias de dunnhumby_etl.staging.
 
@@ -80,7 +82,7 @@ conectado. El usuario de ejecución dbt debe contar además con
 los permisos necesarios para crear y reconstruir las tablas.
 
 Los roles son globales al servidor PostgreSQL; los permisos de
-este archivo se aplican a Data_warehouse y su esquema public.
+este archivo se aplican a Data_warehouse y su esquema dw.
 La configuración de staging se ejecuta por separado en
 dunnhumby_etl con staging_roles_permisos.sql.
 

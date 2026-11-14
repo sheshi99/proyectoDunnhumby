@@ -1,7 +1,7 @@
 # Ejecución y configuración del job ETL
 
 El job `Dunnhumby_ETL_madrugada` se ejecuta todos los días a las 2:00 a. m.;
-sincroniza staging con `public` y actualiza
+sincroniza staging con `raw` y actualiza
 `Data_warehouse` desde staging.
 Usa tres ejecutables de la carpeta `scripts/`. Todos los comandos se ejecutan en
 PowerShell desde la carpeta del proyecto.
@@ -110,7 +110,7 @@ Cualquiera de las dos llama a
 
 1. Comprueba que no haya otra ejecución en curso.
 2. Ejecuta `dbt build` con target `dev` para llevar a staging los registros
-   nuevos, modificados o eliminados en `public` y probar las vistas. Si falla,
+   nuevos, modificados o eliminados en `raw` y probar las vistas. Si falla,
    el warehouse no se toca.
 3. Ejecuta `dbt build` con target `warehouse` para actualizar dimensiones y
    `fact_sales`, con sus pruebas.

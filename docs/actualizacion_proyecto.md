@@ -57,14 +57,14 @@ El detalle está en [tratamiento de nulos](tratamiento_nulos.md) y en la
 ### Punto 3.2: sincronizar origen → staging
 
 Antes, las copias de `staging` se hacían una sola vez con
-`copiar_tablas_a_staging.sql`. Si cambiaba algo en `public`, nunca llegaba al
+`copiar_tablas_a_staging.sql`. Si cambiaba algo en `raw`, nunca llegaba al
 warehouse.
 
 Ahora dbt crea y actualiza las copias con los modelos de
-`models/sincronizacion/`. En cada ejecución del job compara `public` con
+`models/sincronizacion/`. En cada ejecución del job compara `raw` con
 `staging` y aplica solo las diferencias:
 
-| Cambio en `public` | Qué pasa en `staging` |
+| Cambio en `raw` | Qué pasa en `staging` |
 | --- | --- |
 | Registro nuevo | Se inserta. |
 | Registro modificado | Se borra la versión anterior y se inserta la nueva. |
@@ -73,7 +73,7 @@ Ahora dbt crea y actualiza las copias con los modelos de
 El flujo completo queda así:
 
 ```text
-public → staging (copias) → vistas stg_ → dimensiones y hechos → Excel
+raw → staging (copias) → vistas stg_ → dimensiones y hechos → Excel
 ```
 
 Cambios en el repositorio:
@@ -355,11 +355,11 @@ recrear las tablas una vez.
 En pgAdmin, Query Tool conectado a **`Data_warehouse`**:
 
 ```sql
-DROP TABLE public.fact_sales;
-DROP TABLE public.dim_product;
-DROP TABLE public.dim_household;
-DROP TABLE public.dim_time;
-DROP TABLE public.dim_promotional_context;
+DROP TABLE dw.fact_sales;
+DROP TABLE dw.dim_product;
+DROP TABLE dw.dim_household;
+DROP TABLE dw.dim_time;
+DROP TABLE dw.dim_promotional_context;
 ```
 
 `fact_sales` va primero porque tiene las llaves foráneas hacia las dimensiones.
@@ -502,7 +502,7 @@ Si ya tenían un libro conectado al warehouse:
 | --- | --- | --- |
 | `Permission denied: ...dbt_project.yml` en el log del job | El servicio perdió el permiso de lectura al cambiar el archivo. | Repetir el paso 8, o ejecutar `icacls dbt_project.yml /grant '*S-1-5-19:(RX)'`. |
 | `Hay otra ejecución dbt activa` | El job ya está corriendo. | Esperar a que termine; no ejecutarlo dos veces. |
-| `Las columnas de staging.<tabla> no coinciden con el origen` | Cambiaron las columnas de una tabla en `public`. | Revisar el cambio en `public` antes de volver a ejecutar. |
+| `Las columnas de staging.<tabla> no coinciden con el origen` | Cambiaron las columnas de una tabla en `raw`. | Revisar el cambio en `raw` antes de volver a ejecutar. |
 | `Job existente ajeno o en ejecucion` al registrar | El job está corriendo. | Esperar a que termine y repetir el paso 8. |
 
 Más detalles en [capa staging](capa_staging.md) y en la

@@ -61,7 +61,7 @@ El perfil tiene dos conexiones (targets):
 | Target | Destino | Uso |
 | --- | --- | --- |
 | `dev` | `dunnhumby_etl.staging` | Copias de las tablas originales, vistas limpias `stg_` y vistas intermedias `int_`. |
-| `warehouse` | `Data_warehouse.public` | Dimensiones y hechos. |
+| `warehouse` | `Data_warehouse.dw` | Dimensiones y hechos. |
 
 `profiles.yml` también está excluido de Git.
 

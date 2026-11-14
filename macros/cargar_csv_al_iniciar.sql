@@ -1,4 +1,4 @@
-{# Hook on-run-start: carga los CSV de database/ en public durante el primer
+{# Hook on-run-start: carga los CSV de database/ en raw durante el primer
    dbt build --target dev --vars "{cargar_csv: true}".
    Sin esa variable no hace nada (por ejemplo, en el job diario).
    La carpeta se toma del proyecto; no hay que escribir rutas en .env.
@@ -14,6 +14,6 @@
     {{ exceptions.raise_compiler_error('La carga CSV inicial se solicita solamente con --target dev.') }}
   {% endif %}
   {# Sin directorio_csv, cargar_csv usa la carpeta database/ del proyecto. #}
-  {% do cargar_csv(directorio_csv=var('directorio_csv', none), esquema='public') %}
+  {% do cargar_csv(directorio_csv=var('directorio_csv', none), esquema='raw') %}
   {{ return('') }}
 {% endmacro %}

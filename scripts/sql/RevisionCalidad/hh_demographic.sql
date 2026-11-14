@@ -6,11 +6,11 @@
 -- ===========================================================================
 
 -- 1. Conocer las columnas y contar filas y hogares distintos.
-SELECT * FROM public.hh_demographic LIMIT 10;
+SELECT * FROM raw.hh_demographic LIMIT 10;
 
 SELECT COUNT(*) AS total_registros,
        COUNT(DISTINCT household_key) AS hogares_distintos
-FROM public.hh_demographic;
+FROM raw.hh_demographic;
 
 -- 2. Nulos, textos vacíos y categorías por revisar en cada columna.
 -- Unknown y None/Unknown son categorías originales: no equivalen a NULL.
@@ -21,7 +21,7 @@ SELECT v.columna,
        COUNT(*) FILTER (
            WHERE LOWER(BTRIM(v.valor)) IN ('unknown', 'none/unknown')
        ) AS categorias_desconocidas
-FROM public.hh_demographic h
+FROM raw.hh_demographic h
 CROSS JOIN LATERAL (VALUES
     ('household_key', h.household_key::text),
     ('AGE_DESC', h."AGE_DESC"::text),
@@ -38,25 +38,25 @@ ORDER BY v.columna;
 -- 3. Hogares repetidos: se espera una fila por household_key.
 -- Si no devuelve filas, no hay identificadores no nulos repetidos.
 SELECT household_key, COUNT(*) AS apariciones
-FROM public.hh_demographic
+FROM raw.hh_demographic
 WHERE household_key IS NOT NULL
 GROUP BY household_key
 HAVING COUNT(*) > 1;
 
 -- Duplicados exactos: distinguirlos de hogares con perfiles diferentes.
-SELECT (SELECT COUNT(*) FROM public.hh_demographic) - COUNT(*)
+SELECT (SELECT COUNT(*) FROM raw.hh_demographic) - COUNT(*)
        AS filas_duplicadas_exactas
-FROM (SELECT DISTINCT * FROM public.hh_demographic) AS perfiles;
+FROM (SELECT DISTINCT * FROM raw.hh_demographic) AS perfiles;
 
 -- 4. Identificadores no positivos: investigar si existen.
 SELECT COUNT(*) FILTER (WHERE household_key <= 0) AS hogares_no_positivos
-FROM public.hh_demographic;
+FROM raw.hh_demographic;
 
 -- 5. Categorías y frecuencias para revisar consistencia.
 -- Los rangos de edad/ingreso y valores como '5+' son categorías de texto.
 -- Los códigos (por ejemplo, estado civil) requieren el diccionario de datos.
 SELECT v.columna, v.valor, COUNT(*) AS frecuencia
-FROM public.hh_demographic h
+FROM raw.hh_demographic h
 CROSS JOIN LATERAL (VALUES
     ('AGE_DESC', h."AGE_DESC"::text),
     ('MARITAL_STATUS_CODE', h."MARITAL_STATUS_CODE"::text),
@@ -73,14 +73,14 @@ ORDER BY v.columna, frecuencia DESC, v.valor;
 -- EXISTS evita multiplicar hogares que participaron en varias campañas.
 SELECT COUNT(*) AS hogares_con_perfil,
        COUNT(*) FILTER (WHERE EXISTS (
-           SELECT 1 FROM public.campaign_table c
+           SELECT 1 FROM raw.campaign_table c
            WHERE c.household_key = h.household_key
        )) AS con_campanas,
        COUNT(*) FILTER (WHERE NOT EXISTS (
-           SELECT 1 FROM public.campaign_table c
+           SELECT 1 FROM raw.campaign_table c
            WHERE c.household_key = h.household_key
        )) AS sin_campanas
-FROM (SELECT DISTINCT household_key FROM public.hh_demographic
+FROM (SELECT DISTINCT household_key FROM raw.hh_demographic
       WHERE household_key IS NOT NULL) h;
 
 -- ============================================================

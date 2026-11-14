@@ -4,12 +4,12 @@
 
 Los ocho CSV de Dunnhumby están en la carpeta `database/` del proyecto. La carga
 se hace con el mismo `dbt build` de siempre, agregando `--vars "{cargar_csv: true}"`.
-PostgreSQL lee los archivos con `COPY` y los carga en `dunnhumby_etl.public`;
+PostgreSQL lee los archivos con `COPY` y los carga en `dunnhumby_etl.raw`;
 después los modelos construyen staging, las dimensiones y `fact_sales`.
 
 ```text
 database/*.csv → hook cargar_csv_al_iniciar → macro cargar_csv (PostgreSQL COPY)
-    → dunnhumby_etl.public → sincronización → staging → dimensiones y fact_sales
+    → dunnhumby_etl.raw → sincronización → staging → dimensiones y fact_sales
 ```
 
 | Archivo | Función |
@@ -47,7 +47,7 @@ automáticamente y el resultado es idéntico.
 
 ## 2. Cargar los CSV
 
-Con `venv` activado y desde la raíz del proyecto, con las ocho tablas de `public`
+Con `venv` activado y desde la raíz del proyecto, con las ocho tablas de `raw`
 todavía sin crear:
 
 ```powershell
@@ -56,7 +56,7 @@ python -m dotenv -f .env run -- dbt build --profiles-dir . --target dev --select
 python -m dotenv -f .env run -- dbt build --profiles-dir . --target warehouse --select path:models/dimensions path:models/facts
 ```
 
-El primer comando carga los CSV en `public` (unos 2 minutos) y luego construye
+El primer comando carga los CSV en `raw` (unos 2 minutos) y luego construye
 staging. El segundo construye las dimensiones y `fact_sales`. Ejecutar el segundo
 solo si el primero termina bien.
 
@@ -65,7 +65,7 @@ En las ejecuciones siguientes, **quitar** `--vars "{cargar_csv: true}"`.
 ## 3. Protecciones
 
 - **No reemplaza tablas existentes.** Si alguna de las ocho tablas ya está en
-  `public`, se detiene con `... ya existe` y no cambia nada.
+  `raw`, se detiene con `... ya existe` y no cambia nada.
 - **Todo o nada.** Las ocho tablas se cargan en una transacción.
 - **Solo `dev`.** Con `--target warehouse` la carga se niega.
 - **No afecta al job diario.** Sin `cargar_csv: true` el hook no hace nada.
@@ -74,7 +74,7 @@ En las ejecuciones siguientes, **quitar** `--vars "{cargar_csv: true}"`.
 ## 4. Cargar sin construir modelos (`run-operation`)
 
 En una instalación nueva, donde todavía no existen los roles ni `dblink`, cargar
-solo `public` y seguir después con las guías:
+solo `raw` y seguir después con las guías:
 
 ```powershell
 python -m dotenv -f .env run -- dbt run-operation cargar_csv --profiles-dir . --target dev
@@ -85,8 +85,8 @@ Variantes, agregando `--args`:
 | `--args` | Efecto |
 | --- | --- |
 | `"{solo_validar: true}"` | Comprueba los ocho archivos; no crea ni carga nada. |
-| `"{esquema: carga_csv_prueba}"` | Carga en un esquema de prueba, sin tocar `public`. |
-| `"{reemplazar: true}"` | Sustituye a propósito el contenido de `public` (`TRUNCATE` + `COPY`). No usarlo mientras corre el job. |
+| `"{esquema: carga_csv_prueba}"` | Carga en un esquema de prueba, sin tocar `raw`. |
+| `"{reemplazar: true}"` | Sustituye a propósito el contenido de `raw` (`TRUNCATE` + `COPY`). No usarlo mientras corre el job. |
 
 Sin `directorio_csv`, la macro usa la carpeta `database/` del proyecto.
 
@@ -94,7 +94,7 @@ Sin `directorio_csv`, la macro usa la carpeta `database/` del proyecto.
 
 - Validación y carga completa leyendo `database/` con la ruta con tildes
   (`COPY FROM PROGRAM`), en `carga_csv_prueba`: 118 segundos.
-- Comparación con `public`: siete tablas idénticas fila por fila (`EXCEPT ALL` en
+- Comparación con `raw`: siete tablas idénticas fila por fila (`EXCEPT ALL` en
   ambos sentidos, 0 diferencias); `causal_data` con el mismo conteo y la misma
   distribución de `display`/`mailer`. El esquema de prueba se eliminó.
 - `dbt build` con `cargar_csv: true` y tablas existentes: se detiene sin cambios.

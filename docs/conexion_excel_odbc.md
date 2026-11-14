@@ -154,7 +154,7 @@ base `Data_warehouse`.
 ## 9. Elegir las tablas del warehouse
 
 1. Expandir **Data_warehouse**.
-2. Expandir el esquema **public**.
+2. Expandir el esquema **dw**.
 3. Marcar **Seleccionar varios elementos**.
 4. Seleccionar estas cinco tablas:
 

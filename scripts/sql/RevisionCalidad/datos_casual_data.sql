@@ -1,7 +1,7 @@
 -- ============================================================
 -- EVALUACIÓN DE CALIDAD DE DATOS: CAUSAL_DATA
 -- Proyecto: Data Warehouse Dunnhumby
--- Tabla: public.causal_data
+-- Tabla: raw.causal_data
 -- Las consultas son de solo lectura; no modifican los datos.
 -- ============================================================
 
@@ -14,7 +14,7 @@ SELECT
     COUNT(*) FILTER (WHERE "WEEK_NO" IS NULL) AS semanas_nulas,
     COUNT(*) FILTER (WHERE display IS NULL) AS display_nulos,
     COUNT(*) FILTER (WHERE mailer IS NULL) AS mailer_nulos
-FROM public.causal_data;
+FROM raw.causal_data;
 
 -- 2. IDENTIFICACIÓN DE REGISTROS DUPLICADOS
 -- Se identifican filas completamente idénticas.
@@ -24,10 +24,10 @@ SELECT
         SELECT COUNT(*)
         FROM (
             SELECT DISTINCT *
-            FROM public.causal_data
+            FROM raw.causal_data
         ) AS datos_unicos
     ) AS registros_duplicados
-FROM public.causal_data;
+FROM raw.causal_data;
 
 -- 3. IDENTIFICACIÓN DE VALORES NEGATIVOS
 -- Solo se evalúan las columnas numéricas; display y mailer son texto.
@@ -35,7 +35,7 @@ SELECT
     COUNT(*) FILTER (WHERE "PRODUCT_ID" < 0) AS productos_negativos,
     COUNT(*) FILTER (WHERE "STORE_ID" < 0) AS tiendas_negativas,
     COUNT(*) FILTER (WHERE "WEEK_NO" < 0) AS semanas_negativas
-FROM public.causal_data;
+FROM raw.causal_data;
 
 -- 4. VERIFICACIÓN DE INTEGRIDAD REFERENCIAL
 -- Se comprueba que los productos distintos de CAUSAL_DATA existan en PRODUCT.
@@ -46,11 +46,11 @@ SELECT
     ) AS productos_sin_correspondencia
 FROM (
     SELECT DISTINCT "PRODUCT_ID"
-    FROM public.causal_data
+    FROM raw.causal_data
 ) c
 LEFT JOIN (
     SELECT DISTINCT "PRODUCT_ID"
-    FROM public.product
+    FROM raw.product
 ) p
     ON c."PRODUCT_ID" = p."PRODUCT_ID";
 
@@ -62,7 +62,7 @@ SELECT
     COUNT(*) FILTER (WHERE "WEEK_NO" = 0) AS semanas_cero,
     COUNT(*) FILTER (WHERE TRIM(display) = '') AS display_vacios,
     COUNT(*) FILTER (WHERE TRIM(mailer) = '') AS mailer_vacios
-FROM public.causal_data;
+FROM raw.causal_data;
 
 -- 5.1. REVISIÓN DE CÓDIGOS EN DISPLAY Y MAILER
 -- Se listan las categorías presentes y su frecuencia.
@@ -71,7 +71,7 @@ SELECT
     'display' AS columna,
     display AS valor,
     COUNT(*) AS total_registros
-FROM public.causal_data
+FROM raw.causal_data
 GROUP BY display
 
 UNION ALL
@@ -80,7 +80,7 @@ SELECT
     'mailer' AS columna,
     mailer AS valor,
     COUNT(*) AS total_registros
-FROM public.causal_data
+FROM raw.causal_data
 GROUP BY mailer
 
 ORDER BY columna, total_registros DESC;

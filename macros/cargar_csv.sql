@@ -4,7 +4,7 @@
    (PowerShell), porque en Windows no abre esas rutas directamente.
    La validación de los ocho encabezados ocurre antes de crear o vaciar tablas.
    Todas las cargas seleccionadas se confirman en una sola transacción. #}
-{% macro cargar_csv(directorio_csv=none, esquema='public', tablas=none, reemplazar=false, solo_validar=false) %}
+{% macro cargar_csv(directorio_csv=none, esquema='raw', tablas=none, reemplazar=false, solo_validar=false) %}
   {% if not directorio_csv %}
     {# Por defecto, la carpeta database/ del proyecto; no hay que escribir rutas. #}
     {% set directorio_csv = (invocation_args_dict.get('project_dir') | string | replace('\\', '/')).rstrip('/') ~ '/database' %}
@@ -12,8 +12,8 @@
   {% if target.name != 'dev' %}
     {{ exceptions.raise_compiler_error('cargar_csv requiere --target dev; nunca carga CSV en el warehouse.') }}
   {% endif %}
-  {% if esquema != 'public' and not esquema.startswith('carga_csv_') %}
-    {{ exceptions.raise_compiler_error('Usar public o un esquema de prueba cuyo nombre empiece por carga_csv_. No se permite cargar en staging.') }}
+  {% if esquema != 'raw' and not esquema.startswith('carga_csv_') %}
+    {{ exceptions.raise_compiler_error('Usar raw o un esquema de prueba cuyo nombre empiece por carga_csv_. No se permite cargar en staging.') }}
   {% endif %}
   {% if reemplazar not in [true, false] or solo_validar not in [true, false] %}
     {{ exceptions.raise_compiler_error('reemplazar y solo_validar deben ser booleanos JSON: true o false, sin comillas.') }}

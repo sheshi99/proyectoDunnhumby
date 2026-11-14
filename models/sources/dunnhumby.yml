@@ -1,7 +1,7 @@
 version: 2
 sources:
 - name: dunnhumby
-  schema: public
+  schema: raw
   description: Tablas originales cargadas desde los CSV; no se modifican. dbt
     las copia a staging con los modelos de models/sincronizacion.
   tables:

@@ -1,11 +1,11 @@
 -- Materializa la tabla
--- El target warehouse materializa en Data_warehouse.public
+-- El target warehouse materializa en Data_warehouse.dw
 -- Se otorga permiso de lectura al rol rol_data_warehouse
 -- dim_product_id es el ID propio del warehouse (IDENTITY) y la llave primaria
 -- product_id conserva el código original de Dunnhumby; único y obligatorio
 
 {{ config(materialized='cambios', unique_key='product_id', identity_column='dim_product_id',
-    schema='public' if target.name == 'warehouse',
+    schema='dw' if target.name == 'warehouse',
     not_null_columns=['manufacturer', 'department', 'brand', 'category', 'subcategory', 'product_size']) }}
 
 -- Se seleccionan los campos de la vista staging y se renombran 

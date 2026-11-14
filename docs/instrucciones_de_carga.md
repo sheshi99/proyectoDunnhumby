@@ -65,7 +65,7 @@ leer los ocho CSV de la carpeta `database/` del proyecto; la encuentra sola.
    ```
 
 2. Cargar los CSV (con `venv` activado). El usuario de `.env` debe ser
-   superusuario de PostgreSQL, porque `COPY` desde archivos lo exige. Solo carga `public`; no construye modelos:
+   superusuario de PostgreSQL, porque `COPY` desde archivos lo exige. Solo carga `raw`; no construye modelos:
 
    ```powershell
    python -m dotenv -f .env run -- dbt run-operation cargar_csv --profiles-dir . --target dev
@@ -77,7 +77,7 @@ Si los roles de staging ya están configurados (por ejemplo, al reconstruir), la
 carga también puede hacerse dentro del primer `dbt build` con
 `--vars "{cargar_csv: true}"`; ver [carga CSV con dbt](carga_csv_dbt.md#2-cargar-los-csv).
 
-**Resultado esperado:** ocho tablas con sus registros en `dunnhumby_etl.public`.
+**Resultado esperado:** ocho tablas con sus registros en `dunnhumby_etl.raw`.
 Si ya existen, la macro se detiene sin sustituirlas.
 
 La guía [carga CSV con dbt](carga_csv_dbt.md) explica los requisitos, las
