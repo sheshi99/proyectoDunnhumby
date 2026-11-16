@@ -186,7 +186,7 @@ La carga inicial de CSV no se ejecuta automáticamente por el job diario.
 | Carpeta o archivo | Contenido |
 | --- | --- |
 | `database/` | CSV locales, excluidos de Git. |
-| `scripts/cargar_bd.py` | Carga original desde CSV a PostgreSQL. |
+| `macros/cargar_csv.sql` y `macros/cargar_csv_al_iniciar.sql` | Carga de los ocho CSV en `raw` con `COPY` de PostgreSQL, dirigida desde dbt. |
 | `scripts/sql/` | Configuración, revisión de calidad, copia y validación de staging. |
 | `scripts/preparar_pgagent.ps1` | Comprobación y generación de los comandos del job. |
 | `scripts/registrar_pgagent.ps1` | Registro del servicio y del job en pgAgent. |
