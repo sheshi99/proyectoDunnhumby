@@ -1,60 +1,61 @@
 # Cobertura de las necesidades de análisis
 
-Este documento comprueba que el modelo dimensional permite crear en Excel las
-tablas dinámicas propuestas para cada *stakeholder* en el documento del proyecto
-(Tabla 1, *Stakeholders, necesidades de análisis*).
+Este documento describe las tablas dinámicas de Excel construidas para cada
+*stakeholder* a partir de las necesidades del documento del proyecto (Tabla 1,
+*Stakeholders, necesidades de análisis*) y los campos del modelo dimensional
+que usan.
 
 ## Resultado
 
-Todas las consultas propuestas se pueden construir con las tablas actuales:
+Las 15 tablas dinámicas se construyen con las tablas actuales:
 `fact_sales`, `dim_product`, `dim_household`, `dim_time` y
 `dim_promotional_context`.
 
-## Consultas por stakeholder
+## Tablas dinámicas por stakeholder
+
+El libro `tablas_dinamicas/proyectoDunnhumby.xlsx` tiene 15 tablas dinámicas,
+una hoja por *stakeholder*. Todas usan el Modelo de datos de Excel y varias
+incluyen segmentadores para filtrar por tienda, período, categoría o grupo de hogares.
 
 ### Gerencia general
 
 | Consulta | Campos de la tabla dinámica |
 | --- | --- |
-| Total de ventas por período | Filas: `dim_time.calendar_year`, `quarter_name`, `month_name` o `calendar_date`. Valores: suma de `sales_value`. |
-| Comparación de ventas entre tiendas | Filas: `fact_sales.store_id`. Valores: suma de `sales_value`. |
-| Productos que generan mayores ingresos | Filas: `dim_product.product_id`, `brand` o `category`. Valores: suma de `sales_value`, ordenada de mayor a menor. |
-| Ventas con y sin actividad promocional | Filas: `dim_promotional_context.has_promotion`. Valores: suma de `sales_value`. |
+| Total de ventas por período | Filas: `dim_time.calendar_year` y `month_name`. Valores: suma de `sales_value`. |
+| Comparación de ventas entre tiendas | Filas: `fact_sales.store_id`. Valores: suma de `sales_value` y la medida `% Ventas`. |
+| Productos que generan mayores ingresos | Filas: `dim_product.product_id` y `subcategory`. Valores: medida `Top diez productos`. |
+| Ventas con y sin actividad promocional | Filas: `dim_promotional_context.has_promotion`. Valores: suma de `sales_value` y porcentaje del total. |
 
 ### Departamento de ventas
 
 | Consulta | Campos de la tabla dinámica |
 | --- | --- |
-| Ventas por producto, categoría y tienda | Filas: `dim_product.category` y `store_id`. Valores: suma de `sales_value`. |
-| Productos más vendidos | Filas: `dim_product`. Valores: suma de `quantity`, ordenada de mayor a menor. |
-| Cantidades vendidas por período | Filas: `dim_time.month_name` o `week_name`. Valores: suma de `quantity`. |
-| Comparación de ventas entre tiendas | Filas: `store_id`. Valores: suma de `sales_value` y `quantity`. |
+| Ventas y demanda por producto, categoría y tienda | Filas: `dim_product.category` y `product_id`. Valores: suma de `sales_value` y recuento distinto de `basket_id` (veces comprado). Segmentador: `store_id`. |
+| Rendimiento de ventas por tienda y categoría | Filas: `store_id`. Columnas: `dim_time.calendar_year`. Valores: suma de `sales_value`. Segmentadores: `category` y `month_name`. |
 
 ### Departamento de marketing
 
 | Consulta | Campos de la tabla dinámica |
 | --- | --- |
-| Hogares con y sin campañas vigentes el día de la compra | Filas: `household_in_active_campaign`. Valores: suma de `sales_value` y `quantity`. |
-| Gasto según la cantidad de campañas vigentes | Filas: `active_campaigns_count`. Valores: suma y promedio de `sales_value`. |
-| Gasto del hogar en días con y sin campañas | Filas: `household_id`. Columnas: `household_in_active_campaign`. Valores: suma de `sales_value`. |
+| Hogares con y sin campañas vigentes el día de la compra | Filas: `household_in_active_campaign`. Valores: suma de `sales_value`, recuento distinto de `basket_id` y recuento distinto de `dim_household_id`. |
+| Productos más comprados según la campaña vigente del hogar | Filas: `product_id` y `subcategory`. Valores: medida `Top 10 Veces Comprado`. Segmentador: `household_in_active_campaign`. |
 
 ### Encargados de promociones y cupones
 
 | Consulta | Campos de la tabla dinámica |
 | --- | --- |
-| Descuentos totales y promedio por línea | Filas: `category`, `store_id` o `dataset_week_number`. Valores: suma y promedio de `retail_discount`, `coupon_discount` y `coupon_match_discount`. |
-| Ventas con y sin promoción, distinguiendo los casos sin cobertura | Filas: `has_promotion` (tres estados: con promoción, sin promoción y no determinado). Valores: suma de `sales_value` y `quantity`. |
-| Gasto de hogares con y sin canjes el mismo día | Filas: `household_with_redemption_today`. Valores: suma de `sales_value`. |
-| Productos elegibles para cupones frente a no elegibles | Filas: `product_associated_with_coupon` (`Coupon received`, `Coupon available`, `No coupon`). Valores: suma de `sales_value` y `quantity`. |
+| Descuentos totales por producto, categoría, tienda y período | Filas: `dim_product.category` y `product_id`. Valores: medida `Descuento Total`. Segmentadores: `store_id`, `calendar_year` y `month_name`. |
+| Gasto de hogares con y sin canjes el mismo día | Filas: `household_with_redemption_today`. Valores: suma de `sales_value` y medida `Gasto promedio por día de compra`. |
+| Productos elegibles para cupones frente a no elegibles | Filas: `product_associated_with_coupon` (`Coupon received`, `Coupon available`, `No coupon`). Valores: suma de `sales_value` y porcentaje del total. |
 
 ### Departamento de análisis comercial
 
 | Consulta | Campos de la tabla dinámica |
 | --- | --- |
-| Frecuencia de compra por hogar | Filas: `household_id`. Valores: recuento distinto de `basket_id`. |
-| Gasto por grupo demográfico | Filas: `dim_household.age_group`, `income_range` u otro atributo. Valores: suma de `sales_value`. |
-| Categorías más compradas | Filas: `dim_product.category`. Valores: suma de `quantity`. |
-| Comparación entre grupos de hogares | Filas: un atributo de `dim_household`. Columnas: `category`. Valores: suma de `sales_value`. |
+| Frecuencia de compra por hogar | Filas: `dim_household.household_id`. Valores: recuento distinto de `basket_id` y de `dim_time_id` (días con compra). |
+| Gasto por grupo de edad | Filas: `dim_household.age_group`. Valores: suma de `sales_value` y medida `Gasto promedio por hogar`. Segmentadores: `household_composition` e `income_range`. |
+| Categorías más compradas | Filas: `dim_product.category`. Valores: recuento distinto de `basket_id`. |
+| Comportamiento de compra por composición del hogar | Filas: `dim_household.household_composition`. Valores: medidas `Compras promedio por hogar`, `Gasto promedio por compra` y `Gasto promedio por hogar`. Segmentadores: `age_group` e `income_range`. |
 
 ## Columnas de origen que no se usan
 
